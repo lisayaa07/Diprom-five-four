@@ -33,6 +33,7 @@ function Form(): JSX.Element {
   const [selectedProjectGid, setSelectedProjectGid] = useState<string>("");
 
   const [formData, setFormData] = useState({
+    company: "",
     fullName: "",
     phoneNumber: "",
     email: "",
@@ -126,6 +127,8 @@ function Form(): JSX.Element {
       const lines: string[] = [];
 
       // --- ข้อมูลลูกค้า ( ---
+      if (formData.company.trim())
+        lines.push(`ชื่อบริษัท/หน่วยงาน: ${formData.company.trim()}`);
       if (formData.fullName.trim())
         lines.push(`ชื่อ: ${formData.fullName.trim()}`);
       if (selectedProject?.name) lines.push(`ประเภท: ${selectedProject.name}`);
@@ -323,6 +326,17 @@ function Form(): JSX.Element {
                   <h2 className="px-6 pt-6 text-lg sm:text-xl font-semibold ">
                     ข้อมูลลูกค้า
                   </h2>
+                  <div className="grid px-6 py-5">
+                    <label>ชื่อบริษัท/หน่วยงาน</label>
+                    <input
+                        name="company"
+                        value={formData.company}
+                        onChange={handleChange}
+                        required
+                        className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm outline-none focus:border-slate-900"
+                      />
+                  </div>
+
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 px-6 py-5">
                     <div>
@@ -390,6 +404,8 @@ function Form(): JSX.Element {
                         className="mt-2 w-full resize-none rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm outline-none focus:border-slate-900"
                       />
                     </div>
+
+
                   </div>
                 </div>
               </div>
