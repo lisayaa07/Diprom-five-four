@@ -73,8 +73,8 @@ function Form(): JSX.Element {
           : ((json as any)?.data ?? []);
         setProjectsState({ status: "success", data: list, error: null });
 
-        if (list.length > 0)
-          setSelectedProjectGid((prev) => prev || list[0].gid);
+        // if (list.length > 0)
+        //   setSelectedProjectGid((prev) => prev || list[0].gid);
       } catch (e) {
         setProjectsState({
           status: "error",
@@ -166,7 +166,6 @@ function Form(): JSX.Element {
       const laxineColor = getStr("pasansee_laxine_color");
       if (laxineColor) lines.push(`ปะสันแล็กซีน: ${laxineColor}`);
 
-
       // --- การเข้าเล่ม / ตีปรุ / รันนัมเบอร์ (แสดงเฉพาะที่เลือก/กรอก) ---
       if (checked("bind_wire_enabled")) {
         const pos = getStr("bind_wire_pos");
@@ -199,7 +198,7 @@ function Form(): JSX.Element {
       if (formData.extra.trim())
         lines.push(`เพิ่มเติม: ${formData.extra.trim()}`);
 
-      // ดึงค่าจาก Details.tsx 
+      // ดึงค่าจาก Details.tsx
       const detail = getStr("detail");
       const unit = getStr("unit");
       const size = getStr("size");
@@ -315,7 +314,8 @@ function Form(): JSX.Element {
 
           {projectsState.status === "success" && (
             <form
-              onSubmit={handleSubmit} encType="multipart/form-data"
+              onSubmit={handleSubmit}
+              encType="multipart/form-data"
               className="mx-auto w-full max-w-3xl space-y-6 px-4 sm:px-6"
             >
               <div className="w-full bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
@@ -434,9 +434,12 @@ function Form(): JSX.Element {
                           onChange={(e) =>
                             setSelectedProjectGid(e.target.value)
                           }
-                          className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900"
+                          className="mt-2 w-auto rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900"
                         >
-                          {projectsState.data.map((p) => (
+                          <option value="" disabled>
+                            เลือกประเภทงาน
+                          </option>
+                           {projectsState.data.map((p) => (
                             <option key={p.gid} value={p.gid}>
                               {p.name}
                             </option>
@@ -481,7 +484,6 @@ function Form(): JSX.Element {
                   <hr className="my-6 border-slate-200" />
 
                   <Details files={files} setFiles={setFiles} />
-
                 </div>
               </div>
               {/* ปุ่มส่ง */}
