@@ -9,7 +9,7 @@ function Details({ files, setFiles }: DetailsProps) {
   return (
     <>
       <p>รายละเอียดงาน</p>
-      <div className=" p-2 flex items-center">
+      <div className=" p-2 flex items-center text-base sm:text-sm text-slate-800">
         <label>ขนาดสำเร็จ</label>
         <input
           type="text"
@@ -24,7 +24,7 @@ function Details({ files, setFiles }: DetailsProps) {
         />
       </div>
 
-      <div className="p-2 flex flex-wrap items-center gap-2">
+      <div className="p-2 flex flex-wrap items-center gap-2 text-base sm:text-sm text-slate-800">
         <label className="whitespace-nowrap">ขนาดตัดกระดาษ</label>
         <input
           type="text"

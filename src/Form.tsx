@@ -201,6 +201,30 @@ function Form(): JSX.Element {
       if (formData.extra.trim())
         lines.push(`เพิ่มเติม: ${formData.extra.trim()}`);
 
+      // --- รันนัมเบอร์ (แสดงเฉพาะที่เลือก/กรอก) ---
+
+      if (checked("bind_run_enabled")) {
+        const color = getStr("bind_run_color");
+        const book = getStr("bind_run_book");
+
+        const range = getStr("bind_run_range");
+        const rangeCustom = getStr("bind_run_range_custom");
+
+        const rangeText =
+          range === "ยาว"
+            ? rangeCustom
+              ? `ยาว ${rangeCustom}`
+              : "ยาว"
+            : range;
+
+       
+        if (color) lines.push(`รันนัมเบอร์ สี/${color}`);
+        if (book) lines.push(`เล่มที่ ${book}`);
+        if (rangeText) lines.push(`เลขที่ ${rangeText}`);
+
+        
+      }
+
       // ดึงค่าจาก Details.tsx
       const detail = getStr("detail");
       const unit = getStr("unit");
@@ -329,14 +353,13 @@ function Form(): JSX.Element {
                   <div className="grid px-6 py-5">
                     <label>ชื่อบริษัท/หน่วยงาน</label>
                     <input
-                        name="company"
-                        value={formData.company}
-                        onChange={handleChange}
-                        required
-                        className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm outline-none focus:border-slate-900"
-                      />
+                      name="company"
+                      value={formData.company}
+                      onChange={handleChange}
+                      required
+                      className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm outline-none focus:border-slate-900"
+                    />
                   </div>
-
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 px-6 py-5">
                     <div>
@@ -404,8 +427,6 @@ function Form(): JSX.Element {
                         className="mt-2 w-full resize-none rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm outline-none focus:border-slate-900"
                       />
                     </div>
-
-
                   </div>
                 </div>
               </div>
@@ -455,7 +476,7 @@ function Form(): JSX.Element {
                           <option value="" disabled>
                             เลือกประเภทงาน
                           </option>
-                           {projectsState.data.map((p) => (
+                          {projectsState.data.map((p) => (
                             <option key={p.gid} value={p.gid}>
                               {p.name}
                             </option>
