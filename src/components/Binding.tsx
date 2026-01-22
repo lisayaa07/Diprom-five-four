@@ -1,5 +1,5 @@
 // การเข้าเล่ม
-import React, { useState } from "react";
+import  { useState } from "react";
 
 function Binding() {
   const [runEnabled, setRunEnabled] = useState(false);
