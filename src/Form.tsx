@@ -48,7 +48,7 @@ function Form(): JSX.Element {
   });
 
   const [files, setFiles] = useState<File[]>([]);
-  const [result, setResult] = useState<string>("");
+  const [, setResult] = useState<string>("");
   const [creating, setCreating] = useState<boolean>(false);
 
   // โหลด projects
