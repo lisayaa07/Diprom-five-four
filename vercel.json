@@ -3,7 +3,9 @@
   "rewrites": [
     {
       "source": "/(.*)",
-      "destination": "/index.html"
+      "destination": "/index.html",
+      "source": "/api/:path*",
+      "destination": "https://0bptfqdq-8080.asse.devtunnels.ms/:path*"
     }
   ]
 }

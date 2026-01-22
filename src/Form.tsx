@@ -58,7 +58,10 @@ function Form(): JSX.Element {
         setProjectsState({ status: "loading", data: null, error: null });
 
         const res = await fetch(`/api/projects?workspace=${WORKSPACE_GID}`, {
-          headers: { Accept: "application/json" },
+          headers: { Accept: "application/json",
+            "X-Tunnel-Skip-AntiPhishing-Page": "True"
+           }
+          
         });
 
         const text = await res.text();
@@ -253,6 +256,7 @@ function Form(): JSX.Element {
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
+          "X-Tunnel-Skip-AntiPhishing-Page": "True"
         },
         body: JSON.stringify(payload),
       });
