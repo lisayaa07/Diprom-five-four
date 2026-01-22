@@ -14,7 +14,6 @@ function Binding() {
       <div className="space-y-3">
         <label className="block  ">การเข้าเล่ม,ตีปรุและรันนัมเบอร์</label>
 
-        {/* ===== แถว 1===== */}
         <div className="flex items-center  gap-4 rounded-xl px-4 py-1">
           <input
             type="checkbox"
@@ -41,7 +40,7 @@ function Binding() {
           </div>
         </div>
 
-        {/* ===== แถว 2===== */}
+   
         <div className="flex items-center justify-between gap-4 rounded-xl px-4 py-1">
           <input
             type="checkbox"
@@ -68,7 +67,7 @@ function Binding() {
           </div>
         </div>
 
-        {/* ===== แถว 3 ===== */}
+        
         <div className="flex items-center gap-4 rounded-xl px-4 py-1">
           <input type="checkbox" name="bind_glue" className="peer h-4 w-4" />
 
@@ -76,22 +75,25 @@ function Binding() {
             ไสกาว
           </label>
 
-          <input type="checkbox" name="bind_fold" className="peer h-4 w-4" />
+          
 
-          <label className="cursor-pointer text-base sm:text-sm text-slate-800">
+          
+        </div>
+        <div className="flex items-center gap-4 rounded-xl px-4 py-1">
+          <input type="checkbox" name="bind_fold" className="peer h-4 w-4" />  
+        <label className="cursor-pointer text-base sm:text-sm text-slate-800">
             พับ
           </label>
           <div className="ml-auto opacity-40 pointer-events-none peer-checked:opacity-100 peer-checked:pointer-events-auto">
             <input
               type="text"
               name="bind_fold_detail"
-              className="w-[260px] max-w-[55vw] rounded-xl border border-slate-300 bg-white px-3 py-1 text-base sm:text-sm outline-none focus:border-slate-900"
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-1 text-base sm:text-sm outline-none focus:border-slate-900"
             />
           </div>
           <p className="text-base sm:text-sm text-slate-800">พับ</p>
-        </div>
+          </div>
 
-        {/* ===== แถว 4 ===== */}
         <div className="flex items-center gap-4 rounded-xl px-4 py-1">
           <input type="checkbox" name="bind_other" className="peer h-4 w-4" />
 
@@ -107,7 +109,7 @@ function Binding() {
           </div>
         </div>
 
-        {/* ===== แถว 5===== */}
+
         <div className="flex items-center  gap-4 rounded-xl px-4 py-1">
           <input
             type="checkbox"
@@ -133,7 +135,7 @@ function Binding() {
             ))}
           </div>
         </div>
-        {/* ===== แถว 6: รันนัมเบอร์ ===== */}
+
 
         <div className="rounded-xl px-4 py-2">
           <div className="flex items-center gap-3">
@@ -166,7 +168,7 @@ function Binding() {
             />
           </div>
 
-          {/* เล่มที่ */}
+       
           <div className={sectionCls(runEnabled)}>
             <input
               type="checkbox"
@@ -186,7 +188,7 @@ function Binding() {
             />
           </div>
 
-          {/* เลขที่ */}
+     
           <div
             className={`${runEnabled ? "mt-2 pl-7" : "mt-2 pl-7 opacity-40 pointer-events-none"}`}
           >
