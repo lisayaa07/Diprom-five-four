@@ -4,6 +4,8 @@ import Pasansee from "./components/Pasansee";
 import Binding from "./components/Binding";
 import Details from "./components/Details";
 import Subtask, { type SubtaskDraft } from "./components/Subtask";
+import TypeOfWork from "./components/TypeOfWork";
+import Printer from "./components/Printer";
 
 type Project = { gid: string; name: string; resource_type?: string };
 type State<T> =
@@ -241,6 +243,29 @@ function Form(): JSX.Element {
       if (detail) parts.push(`ขนาดสำเร็จ: ${detail}${unit ? ` ${unit}` : ""}`);
       if (size) parts.push(`ขนาดตัดกระดาษ: ${size}`);
       if (parts.length) lines.push(parts.join(" | "));
+      
+      const Detail_Type = getAllStr("Detail_Type");
+      if (Detail_Type.length > 0) lines.push(`รูปแบบ: ${Detail_Type.join(", ")}`);
+
+      // ชนิดรูปแบบงาน
+      const typeWorks = getAllStr("type_of_work"); // ได้หลายค่า
+      const otherType = getStr("other_type_of_work");
+      const finalTypeWorks = typeWorks
+        .map((x) => (x === "อื่นๆ" ? (otherType ? `อื่นๆ: ${otherType}` : "อื่นๆ") : x))
+        .filter((x) => x.length > 0);
+
+      if (finalTypeWorks.length > 0) {
+        lines.push(`ชนิดรูปแบบงาน: ${finalTypeWorks.join(", ")}`);
+      }
+
+      //เครื่องพิมพ์
+      const printer = getAllStr("printer");
+      const finalprinter = printer
+      if (finalprinter.length > 0) {
+        lines.push(`เครื่องพิมพ์: ${finalprinter.join(", ")}`);
+      }
+       
+
 
       const notes = lines.join("\n");
 
@@ -508,7 +533,7 @@ function Form(): JSX.Element {
                   <h2 className=" pt-6 text-lg sm:text-xl font-semibold">
                     รายละเอียดงาน
                   </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 px-6 py-5">
+                  <div className="grid grid-cols-2 md:grid-cols-2 gap-6 px-6 py-5">
                     <div>
                       <label>วันที่สั่งงาน</label>
                       <input
@@ -533,7 +558,8 @@ function Form(): JSX.Element {
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 px-6 py-5">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 ">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+
                       <div>
                         <label className="text-sm font-medium text-slate-800">
                           ประเภท (Project)
@@ -543,10 +569,10 @@ function Form(): JSX.Element {
                           onChange={(e) =>
                             setSelectedProjectGid(e.target.value)
                           }
-                          className="mt-2 w-auto rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900"
+                          className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900"
                         >
                           <option value="" disabled>
-                            เลือกประเภทงาน
+                            ประเภทงาน
                           </option>
                           {projectsState.data.map((p) => (
                             <option key={p.gid} value={p.gid}>
@@ -603,6 +629,14 @@ function Form(): JSX.Element {
                   <hr className="my-6 border-slate-200" />
 
                   <Details files={files} setFiles={setFiles} />
+
+                  <hr className="my-6 border-slate-200" />
+
+                  <TypeOfWork />
+
+                  <hr className="my-6 border-slate-200" />
+
+                  <Printer />
                 </div>
               </div>
               {/* ปุ่มส่ง */}
