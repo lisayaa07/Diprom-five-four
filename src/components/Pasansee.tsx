@@ -1,7 +1,7 @@
 function Pasansee() {
   return (
     <div className="space-y-3">
-      <label className="block  font-medium ">ปะสันสี</label>
+      <label className="block  ">ปะสันสี</label>
 
       {/* ===== แถว 1: กระดาษ ===== */}
       <div className="flex  gap-4 rounded-xl px-4 py-3">
