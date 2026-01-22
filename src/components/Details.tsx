@@ -9,7 +9,7 @@ function Details({ files, setFiles }: DetailsProps) {
   return (
     <>
       <p>รายละเอียดงาน</p>
-      <div className=" p-2 flex items-center text-base sm:text-sm text-slate-800">
+      <div className=" p-2 grid grid-cols-1 md:grid-cols-2 items-center text-base sm:text-sm text-slate-800">
         <label>ขนาดสำเร็จ</label>
         <input
           type="text"

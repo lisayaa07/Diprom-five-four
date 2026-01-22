@@ -3,6 +3,8 @@ import Paper_used from "./components/Paper_used";
 import Pasansee from "./components/Pasansee";
 import Binding from "./components/Binding";
 import Details from "./components/Details";
+import Subtask, { type SubtaskDraft } from "./components/Subtask";
+
 type Project = { gid: string; name: string; resource_type?: string };
 type State<T> =
   | { status: "loading"; data: null; error: null }
@@ -33,6 +35,7 @@ function Form(): JSX.Element {
   const [selectedProjectGid, setSelectedProjectGid] = useState<string>("");
 
   const [formData, setFormData] = useState({
+    tax_id: "",
     company: "",
     fullName: "",
     phoneNumber: "",
@@ -50,6 +53,7 @@ function Form(): JSX.Element {
   const [files, setFiles] = useState<File[]>([]);
   const [, setResult] = useState<string>("");
   const [creating, setCreating] = useState<boolean>(false);
+  const [subtasks, setSubtasks] = useState<SubtaskDraft[]>([]);
 
   // โหลด projects
   useEffect(() => {
@@ -58,10 +62,10 @@ function Form(): JSX.Element {
         setProjectsState({ status: "loading", data: null, error: null });
 
         const res = await fetch(`/api/projects?workspace=${WORKSPACE_GID}`, {
-          headers: { Accept: "application/json",
-            "X-Tunnel-Skip-AntiPhishing-Page": "True"
-           }
-          
+          headers: {
+            Accept: "application/json",
+            "X-Tunnel-Skip-AntiPhishing-Page": "True",
+          },
         });
 
         const text = await res.text();
@@ -130,6 +134,8 @@ function Form(): JSX.Element {
       const lines: string[] = [];
 
       // --- ข้อมูลลูกค้า ( ---
+      if (formData.tax_id.trim())
+        lines.push(`TAX ID: ${formData.tax_id.trim()}`);
       if (formData.company.trim())
         lines.push(`ชื่อบริษัท/หน่วยงาน: ${formData.company.trim()}`);
       if (formData.fullName.trim())
@@ -220,12 +226,9 @@ function Form(): JSX.Element {
               : "ยาว"
             : range;
 
-       
         if (color) lines.push(`รันนัมเบอร์ สี/${color}`);
         if (book) lines.push(`เล่มที่ ${book}`);
         if (rangeText) lines.push(`เลขที่ ${rangeText}`);
-
-        
       }
 
       // ดึงค่าจาก Details.tsx
@@ -256,7 +259,7 @@ function Form(): JSX.Element {
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
-          "X-Tunnel-Skip-AntiPhishing-Page": "True"
+          "X-Tunnel-Skip-AntiPhishing-Page": "True",
         },
         body: JSON.stringify(payload),
       });
@@ -273,6 +276,55 @@ function Form(): JSX.Element {
       const taskGid = getTaskGid(json);
       if (!taskGid) {
         throw new Error("สร้าง task สำเร็จแต่หา task gid ไม่เจอจาก response");
+      }
+      for (const s of subtasks) {
+        const name = s.name.trim();
+        if (!name) continue;
+
+        // สร้าง subtask ใต้ task แม่
+        const subRes = await fetch(`/api/tasks/${taskGid}/subtasks`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "X-Tunnel-Skip-AntiPhishing-Page": "True",
+          },
+          body: JSON.stringify({ data: { name } }),
+        });
+
+        const subText = await subRes.text();
+        const subJson = JSON.parse(subText) as {
+          data?: { gid?: string };
+          gid?: string;
+        };
+
+        if (!subRes.ok) {
+          throw new Error(
+            `POST /tasks/${taskGid}/subtasks failed (HTTP ${subRes.status})\n${JSON.stringify(subJson, null, 2)}`,
+          );
+        }
+
+        const subGid = subJson.data?.gid || subJson.gid;
+        if (!subGid) throw new Error("สร้าง subtask สำเร็จแต่หา gid ไม่เจอ");
+
+        if (s.projectGid) {
+          const addRes = await fetch(`/api/tasks/${subGid}/addProject`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+              "X-Tunnel-Skip-AntiPhishing-Page": "True",
+            },
+            body: JSON.stringify({ project: s.projectGid }),
+          });
+
+          if (!addRes.ok) {
+            const addText = await addRes.text();
+            throw new Error(
+              `addProject failed (HTTP ${addRes.status})\n${addText}`,
+            );
+          }
+        }
       }
 
       if (files.length > 0) {
@@ -351,9 +403,25 @@ function Form(): JSX.Element {
             >
               <div className="w-full bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="border border-slate-200 rounded-2xl ">
-                  <h2 className="px-6 pt-6 text-lg sm:text-xl font-semibold ">
+                  <div className="grid grid-cols-1 md:grid-cols-2 justify-between px-6 py-5">
+                 <div>
+               
+                  <h2 className="px-6 pt-6 text-lg sm:text-xl font-semibold flex items-center">
                     ข้อมูลลูกค้า
                   </h2>
+                  </div>
+                  <div className="flex items-center">
+                    <label>tax</label>
+                    <input
+                      name="tax_id"
+                      value={formData.tax_id}
+                      onChange={handleChange}
+                      className="mt-2 ml-1 w-full rounded-lg border border-slate-300 px-2 py-1 text-base sm:text-sm outline-none focus:border-slate-900"
+                    />
+                  </div>
+
+                     
+                  </div>
                   <div className="grid px-6 py-5">
                     <label>ชื่อบริษัท/หน่วยงาน</label>
                     <input
@@ -510,6 +578,16 @@ function Form(): JSX.Element {
                       />
                     </div>
                   </div>
+                  <Subtask
+                    projects={
+                      projectsState.status === "success"
+                        ? projectsState.data
+                        : []
+                    }
+                    value={subtasks}
+                    onChange={setSubtasks}
+                    disabled={creating || projectsState.status !== "success"}
+                  />
                   <hr className="my-6 border-slate-200" />
 
                   <Paper_used />
