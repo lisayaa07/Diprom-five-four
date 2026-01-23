@@ -6,6 +6,9 @@ import Details from "./components/Details";
 import Subtask, { type SubtaskDraft } from "./components/Subtask";
 import TypeOfWork from "./components/TypeOfWork";
 import Printer from "./components/Printer";
+import SearchBox from "./components/Search_Box";
+import { useSearchParams } from "react-router-dom";
+
 
 type Project = { gid: string; name: string; resource_type?: string };
 type State<T> =
@@ -96,6 +99,77 @@ function Form(): JSX.Element {
 
     loadProjects();
   }, []);
+
+  const [searchParams] = useSearchParams();
+
+useEffect(() => {
+  const orderId = searchParams.get("order_id");
+  if (!orderId) return;
+
+  const run = async () => {
+    const GAS_URL =
+      "https://script.google.com/macros/s/AKfycbyMeWdrpkC-sg-ByX2g9q64vAR5AahB3-5hAH9DdME220JmWoOTgQfZ_0ZrYRXPpyhnHQ/exec";
+
+    const url = new URL(GAS_URL);
+    url.searchParams.set("action", "getOrderById");
+    url.searchParams.set("order_id", orderId);
+
+    const res = await fetch(url.toString());
+    const text = await res.text();
+    const json = JSON.parse(text) as {
+      ok: boolean;
+      found?: boolean;
+      user?: { tax?: string; companyName?: string } | null;
+      order?: {
+        customerName?: string;
+        phone?: string;
+        email?: string;
+        line?: string;
+        address?: string;
+        startDate?: string;
+        endDate?: string;
+        projectName?: string;
+        quantity?: string;
+        notes?: string;
+      };
+      error?: string;
+    };
+
+    if (!res.ok) throw new Error(`GAS HTTP ${res.status}\n${text}`);
+    if (!json.ok) throw new Error(json.error || "GAS ok:false");
+    if (!json.found || !json.order) return;
+
+    // เติมข้อมูลลง formData
+    setFormData((prev) => ({
+      ...prev,
+      tax_id: json.user?.tax ?? prev.tax_id,
+      company: json.user?.companyName ?? prev.company,
+      fullName: String(json.order?.customerName ?? ""),
+      phoneNumber: String(json.order?.phone ?? ""),
+      email: String(json.order?.email ?? ""),
+      lineId: String(json.order?.line ?? ""),
+      address: String(json.order?.address ?? ""),
+      jobName: String(json.order?.projectName ?? prev.jobName), // ถ้าคุณอยากเอาชื่องานเก่า แนะนำเก็บเพิ่มในชีทภายหลัง
+      quantity: String(json.order?.quantity ?? ""),
+      startDate: String(json.order?.startDate ?? ""),
+      endDate: String(json.order?.endDate ?? ""),
+      extra: "",
+    }));
+
+    // ตั้ง selectedProject จาก "ชื่อโปรเจกต์" (เพราะในชีทเราเก็บเป็นชื่อ)
+    const projectName = String(json.order.projectName ?? "");
+    if (projectsState.status === "success" && projectName) {
+      const match = projectsState.data.find((p) => p.name === projectName);
+      if (match) setSelectedProjectGid(match.gid);
+    }
+  };
+
+  run().catch((e) => {
+    console.error(e);
+  });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [searchParams, projectsState.status]);
+
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -306,7 +380,7 @@ function Form(): JSX.Element {
 
       //ลองเก็บ database โดยใช้ google app script
       const GAS_URL =
-        "https://script.google.com/macros/s/AKfycbx_Cy9ZrWICBD-1F8vz-zygjPqv0mzkXQMDsnBSRC1Ajw5vbIHG6n2sXwEnPRHFZiMf/exec";
+        "https://script.google.com/macros/s/AKfycbyMeWdrpkC-sg-ByX2g9q64vAR5AahB3-5hAH9DdME220JmWoOTgQfZ_0ZrYRXPpyhnHQ/exec";
 
       const gasRes = await fetch(GAS_URL, {
         method: "POST",
@@ -459,12 +533,18 @@ function Form(): JSX.Element {
       setCreating(false);
     }
   };
+  
   return (
     <>
       <div className="min-h-screen text-slate-900">
         <header className="mx-auto max-w-3xl px-4 py-10 text-center text-4xl">
           <h2>ใบสั่งพิมพ์งาน</h2>
+         
         </header>
+         <div className="ml-100 mb-6"> 
+          <SearchBox />
+
+            </div>
 
         <section className="broder border-black-500 ">
           {projectsState.status === "loading" && (
