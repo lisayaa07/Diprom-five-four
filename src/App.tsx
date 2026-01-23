@@ -4,6 +4,7 @@ import Form from "./Form";
 import Add from "./Add";
 import Calc from "./Calc";
 import Search_User from "./components/Search_User";
+import Order_Detail from "./components/Order_Detail";
 export default function App() {
   return (
     
@@ -13,6 +14,7 @@ export default function App() {
           <Route path="/add" element={<Add />} />
           <Route path="/calc" element={<Calc />} />
           <Route path="/search-user" element={<Search_User />} />
+          <Route path="/order/:orderId" element={<Order_Detail />} />
         </Routes>
       
   );

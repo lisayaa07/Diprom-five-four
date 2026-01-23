@@ -1,4 +1,4 @@
-import React, { useEffect, useState, type JSX } from "react";
+import  { useEffect, useState, type JSX } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 
 type GasSearchResp = {
@@ -10,18 +10,24 @@ type GasSearchResp = {
     ชื่อบริษัท: string;
     จำนวนครั้งที่เคยใช้บริการ: number;
   }>;
-  ordersByUser?: Record<
-    string,
-    Array<{
-      ID_Order: string;
-      ประเภทงาน: string;
-      วันรับงาน: string;
-      วันส่งงาน: string;
-      จำนวนสั่ง: string;
-    }>
-  >;
+
+ordersByUser?: Record<
+  string,
+  Array<{
+    ID_Order: string;
+    ประเภทงาน: string;
+    วันรับงาน: string;
+    วันส่งงาน: string;
+    จำนวนสั่ง: string;
+    รายละเอียดงานทั้งหมด?: string;
+    ไฟล์?: string;
+  }>
+>;
+
   error?: string;
 };
+
+
 
 const GAS_URL =
   "https://script.google.com/macros/s/AKfycbyMeWdrpkC-sg-ByX2g9q64vAR5AahB3-5hAH9DdME220JmWoOTgQfZ_0ZrYRXPpyhnHQ/exec";
@@ -119,7 +125,7 @@ export default function Searh_User(): JSX.Element {
                   <li key={o.ID_Order}>
                     <button
                       type="button"
-                      onClick={() => nav(`/form?order_id=${encodeURIComponent(o.ID_Order)}`)}
+                      onClick={() => nav(`/order/${encodeURIComponent(o.ID_Order)}`)}
                       className="w-full rounded-lg border border-slate-200 px-3 py-2 text-left hover:bg-slate-50"
                     >
                       <div className="font-medium">
@@ -128,6 +134,17 @@ export default function Searh_User(): JSX.Element {
                       <div className="text-xs text-slate-600">
                         รับงาน: {o.วันรับงาน || "-"} • ส่งงาน: {o.วันส่งงาน || "-"}
                       </div>
+
+                      <div className="text-xs text-slate-600 whitespace-pre-wrap">
+                            {o.รายละเอียดงานทั้งหมด ? o.รายละเอียดงานทั้งหมด : "-"}
+                            </div>
+
+                            {o.ไฟล์ && (
+                            <div className="text-xs text-slate-600">
+                                ไฟล์: {o.ไฟล์}
+                            </div>
+)}
+
                     </button>
                   </li>
                 ))}
