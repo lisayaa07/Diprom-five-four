@@ -243,15 +243,18 @@ function Form(): JSX.Element {
       if (detail) parts.push(`ขนาดสำเร็จ: ${detail}${unit ? ` ${unit}` : ""}`);
       if (size) parts.push(`ขนาดตัดกระดาษ: ${size}`);
       if (parts.length) lines.push(parts.join(" | "));
-      
+
       const Detail_Type = getAllStr("Detail_Type");
-      if (Detail_Type.length > 0) lines.push(`รูปแบบ: ${Detail_Type.join(", ")}`);
+      if (Detail_Type.length > 0)
+        lines.push(`รูปแบบ: ${Detail_Type.join(", ")}`);
 
       // ชนิดรูปแบบงาน
       const typeWorks = getAllStr("type_of_work"); // ได้หลายค่า
       const otherType = getStr("other_type_of_work");
       const finalTypeWorks = typeWorks
-        .map((x) => (x === "อื่นๆ" ? (otherType ? `อื่นๆ: ${otherType}` : "อื่นๆ") : x))
+        .map((x) =>
+          x === "อื่นๆ" ? (otherType ? `อื่นๆ: ${otherType}` : "อื่นๆ") : x,
+        )
         .filter((x) => x.length > 0);
 
       if (finalTypeWorks.length > 0) {
@@ -260,18 +263,16 @@ function Form(): JSX.Element {
 
       //เครื่องพิมพ์
       const printer = getAllStr("printer");
-      const finalprinter = printer
+      const finalprinter = printer;
       if (finalprinter.length > 0) {
         lines.push(`เครื่องพิมพ์: ${finalprinter.join(", ")}`);
       }
-       
-
 
       const notes = lines.join("\n");
 
       const payload = {
         data: {
-          name: getStr("jobName"), // ชื่องาน
+          name: getStr("jobName"),
           notes, // description
           projects: [selectedProjectGid],
           start_on: getStr("startDate"),
@@ -302,6 +303,64 @@ function Form(): JSX.Element {
       if (!taskGid) {
         throw new Error("สร้าง task สำเร็จแต่หา task gid ไม่เจอจาก response");
       }
+
+      //ลองเก็บ database โดยใช้ google app script
+      const GAS_URL =
+        "https://script.google.com/macros/s/AKfycbx_Cy9ZrWICBD-1F8vz-zygjPqv0mzkXQMDsnBSRC1Ajw5vbIHG6n2sXwEnPRHFZiMf/exec";
+
+      const gasRes = await fetch(GAS_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({
+          action: "saveOrder",
+          payload: {
+            user: {
+              tax: formData.tax_id,         // ✅ ใช้ค่าจากฟอร์มจริง
+              companyName: formData.company // ✅ ใช้ค่าจากฟอร์มจริง
+            },
+            order: {
+              customerName: formData.fullName,
+              phone: formData.phoneNumber,
+              email: formData.email,
+              line: formData.lineId,
+              address: formData.address,
+              startDate: formData.startDate,
+              endDate: formData.endDate,
+              projectName: selectedProject?.name ?? "",
+              quantity: formData.quantity,
+              notes,
+              files: files.map((f) => f.name),
+            },
+          },
+        }),
+      });
+
+      const gasText = await gasRes.text();
+      let gasJson: unknown;
+      try {
+        gasJson = JSON.parse(gasText);
+      } catch {
+        gasJson = { raw: gasText };
+      }
+
+      console.log("GAS status:", gasRes.status);
+      console.log("GAS response:", gasJson);
+
+      if (!gasRes.ok) {
+        throw new Error(`GAS HTTP ${gasRes.status}\n${gasText}`);
+      }
+
+      // ถ้า GAS ตอบ ok:false ให้ throw ออกมาเลย จะได้เห็นใน result
+      if (
+        typeof gasJson === "object" &&
+        gasJson !== null &&
+        "ok" in gasJson &&
+        (gasJson as { ok: boolean }).ok === false
+      ) {
+        throw new Error(`GAS ok:false\n${JSON.stringify(gasJson, null, 2)}`);
+      }
+
+
       for (const s of subtasks) {
         const name = s.name.trim();
         if (!name) continue;
@@ -429,23 +488,20 @@ function Form(): JSX.Element {
               <div className="w-full bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="border border-slate-200 rounded-2xl ">
                   <div className="grid grid-cols-1 md:grid-cols-2 justify-between px-6 py-5">
-                 <div>
-               
-                  <h2 className="px-6 pt-6 text-lg sm:text-xl font-semibold flex items-center">
-                    ข้อมูลลูกค้า
-                  </h2>
-                  </div>
-                  <div className="flex items-center">
-                    <label>tax</label>
-                    <input
-                      name="tax_id"
-                      value={formData.tax_id}
-                      onChange={handleChange}
-                      className="mt-2 ml-1 w-full rounded-lg border border-slate-300 px-2 py-1 text-base sm:text-sm outline-none focus:border-slate-900"
-                    />
-                  </div>
-
-                     
+                    <div>
+                      <h2 className="px-6 pt-6 text-lg sm:text-xl font-semibold flex items-center">
+                        ข้อมูลลูกค้า
+                      </h2>
+                    </div>
+                    <div className="flex items-center">
+                      <label>tax</label>
+                      <input
+                        name="tax_id"
+                        value={formData.tax_id}
+                        onChange={handleChange}
+                        className="mt-2 ml-1 w-full rounded-lg border border-slate-300 px-2 py-1 text-base sm:text-sm outline-none focus:border-slate-900"
+                      />
+                    </div>
                   </div>
                   <div className="grid px-6 py-5">
                     <label>ชื่อบริษัท/หน่วยงาน</label>
@@ -559,7 +615,6 @@ function Form(): JSX.Element {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 px-6 py-5">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-
                       <div>
                         <label className="text-sm font-medium text-slate-800">
                           ประเภท (Project)
