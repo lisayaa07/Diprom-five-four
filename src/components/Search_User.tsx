@@ -1,4 +1,4 @@
-import  { useEffect, useState, type JSX } from "react";
+import { useEffect, useState, type JSX } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 
 type GasSearchResp = {
@@ -11,26 +11,55 @@ type GasSearchResp = {
     จำนวนครั้งที่เคยใช้บริการ: number;
   }>;
 
-ordersByUser?: Record<
-  string,
-  Array<{
-    ID_Order: string;
-    ประเภทงาน: string;
-    วันรับงาน: string;
-    วันส่งงาน: string;
-    จำนวนสั่ง: string;
-    รายละเอียดงานทั้งหมด?: string;
-    ไฟล์?: string;
-  }>
->;
+  ordersByUser?: Record<
+    string,
+    Array<{
+      ID_Order: string;
+      ประเภทงาน: string;
+      วันรับงาน: string;
+      วันส่งงาน: string;
+      จำนวนสั่ง: string;
+      รายละเอียดงานทั้งหมด?: string;
+      ไฟล์?: string;
+    }>
+  >;
 
   error?: string;
 };
+type FileLink = { name: string; url: string };
 
+function parseFileLinks(raw: string): FileLink[] {
+  const s = (raw || "").trim();
+  if (!s) return [];
 
+  // ✅ รูปแบบใหม่: JSON string จาก fileLinks
+  try {
+    const j = JSON.parse(s) as unknown;
+    if (Array.isArray(j)) {
+      return j
+        .map((x) => {
+          if (!x || typeof x !== "object") return null;
+          const name = (x as { name?: unknown }).name;
+          const url = (x as { url?: unknown }).url;
+          if (typeof name !== "string") return null;
+          return { name, url: typeof url === "string" ? url : "" };
+        })
+        .filter((x): x is FileLink => x !== null);
+    }
+  } catch {
+    // ignore
+  }
+
+  // ✅ fallback (ข้อมูลเก่า): ชื่อไฟล์คั่นด้วย comma
+  return s
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .map((name) => ({ name, url: "" }));
+}
 
 const GAS_URL =
-  "https://script.google.com/macros/s/AKfycbyMeWdrpkC-sg-ByX2g9q64vAR5AahB3-5hAH9DdME220JmWoOTgQfZ_0ZrYRXPpyhnHQ/exec";
+  "https://script.google.com/macros/s/AKfycbxalbLbNad6Ni2EmsbbuYqj4uCuJGoOQ1kEJP6ky4kjWKXVnmhrW6Dci3WgrbpKASvy/exec";
 
 export default function Searh_User(): JSX.Element {
   const [params] = useSearchParams();
@@ -71,8 +100,13 @@ export default function Searh_User(): JSX.Element {
 
     run();
   }, [q]);
-
+const dateOnly = (v: any) => {
+  const s = String(v || "").trim();
+  const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+  return m ? m[1] : (s || "-");
+};
   return (
+    
     <div className="mx-auto max-w-3xl space-y-4 px-4 py-6">
       <div className="flex items-center justify-between">
         <div className="text-lg font-semibold">ประวัติลูกค้า</div>
@@ -110,41 +144,74 @@ export default function Searh_User(): JSX.Element {
       {data?.users?.map((u) => {
         const orders = data.ordersByUser?.[u.ID_User] ?? [];
         return (
-          <div key={u.ID_User} className="rounded-xl border border-slate-200 bg-white p-4">
+          <div
+            key={u.ID_User}
+            className="rounded-xl border border-slate-200 bg-white p-4"
+          >
             <div className="font-semibold">{u.ชื่อบริษัท}</div>
             <div className="text-xs text-slate-600">
-              tax: {u.tax || "-"} • ใช้บริการแล้ว {u.จำนวนครั้งที่เคยใช้บริการ || 0} ครั้ง
+              tax: {u.tax || "-"} • ใช้บริการแล้ว{" "}
+              {u.จำนวนครั้งที่เคยใช้บริการ || 0} ครั้ง
             </div>
 
             <div className="mt-3 text-sm font-medium">รายการงาน</div>
-            {orders.length === 0 ? (
-              <div className="mt-2 text-sm text-slate-600">ยังไม่มีรายการงาน</div>
-            ) : (
-              <ul className="mt-2 space-y-2">
+              {orders.length === 0 ? (
+                <div className="mt-2 text-sm text-slate-600">
+                  ยังไม่มีรายการงาน
+                </div>
+              ) : (
+                <ul className="mt-2 space-y-2">
                 {orders.map((o) => (
                   <li key={o.ID_Order}>
                     <button
                       type="button"
-                      onClick={() => nav(`/order/${encodeURIComponent(o.ID_Order)}`)}
+                      onClick={() =>
+                        nav(`/order/${encodeURIComponent(o.ID_Order)}`)
+                      }
                       className="w-full rounded-lg border border-slate-200 px-3 py-2 text-left hover:bg-slate-50"
                     >
                       <div className="font-medium">
-                        {o.ประเภทงาน || "(ไม่ระบุประเภทงาน)"} • จำนวน {o.จำนวนสั่ง || "-"}
+                        {o.ประเภทงาน || "(ไม่ระบุประเภทงาน)"} • จำนวน{" "}
+                        {o.จำนวนสั่ง || "-"}
                       </div>
                       <div className="text-xs text-slate-600">
-                        รับงาน: {o.วันรับงาน || "-"} • ส่งงาน: {o.วันส่งงาน || "-"}
+                        รับงาน: {dateOnly(o.วันรับงาน)} • ส่งงาน: {dateOnly(o.วันส่งงาน)}
                       </div>
-
+                                            
                       <div className="text-xs text-slate-600 whitespace-pre-wrap">
-                            {o.รายละเอียดงานทั้งหมด ? o.รายละเอียดงานทั้งหมด : "-"}
-                            </div>
+                        {o.รายละเอียดงานทั้งหมด ? o.รายละเอียดงานทั้งหมด : "-"}
+                      </div>
+                      {(() => {
+                        const fileLinks = parseFileLinks(o.ไฟล์ ?? "");
+                        if (fileLinks.length === 0) return null;
 
-                            {o.ไฟล์ && (
-                            <div className="text-xs text-slate-600">
-                                ไฟล์: {o.ไฟล์}
-                            </div>
-)}
+                        return (
+                          <div className="mt-2 text-xs">
+                            <b>ไฟล์:</b>
+                            <ul className="mt-1 space-y-1">
+                              {fileLinks.map((f, i) => (
+                                <li key={`${f.name}-${i}`}>
+                                  {f.url ? (
+                                   <a
+                                      href={f.url}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="underline"
+                                      onClick={(e) => e.stopPropagation()}  // ✅ สำคัญ
+                                    >
+                                      {f.name}
+                                    </a>
 
+                                  ) : (
+                                    <span>{f.name}</span>
+                                  )}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        );
+                      })()}
+                      
                     </button>
                   </li>
                 ))}

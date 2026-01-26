@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, type JSX } from "react";
+import  { useEffect, useMemo, useState, type JSX } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 type GasOrderDetailResp = {
@@ -21,9 +21,41 @@ type GasOrderDetailResp = {
     files: string;
   };
 };
+type FileLink = { name: string; url: string };
+
+function parseFileLinks(raw: string): FileLink[] {
+  const s = (raw || "").trim();
+  if (!s) return [];
+
+  // รูปแบบใหม่: JSON string เช่น [{"name":"..","url":".."}]
+  try {
+    const j = JSON.parse(s);
+    if (Array.isArray(j)) {
+      return j
+        .map((x) => {
+          if (!x || typeof x !== "object") return null;
+          const name = x.name;
+          const url = x.url;
+          if (typeof name !== "string") return null;
+          return { name, url: typeof url === "string" ? url : "" };
+        })
+        .filter(Boolean) as FileLink[];
+    }
+  } catch {
+    // ignore
+  }
+
+  // fallback: ถ้าเป็น "a.pdf, b.ai"
+ return s
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .map((name) => ({ name, url: "" }));
+}
+
 
 const GAS_URL =
-  "https://script.google.com/macros/s/AKfycbyMeWdrpkC-sg-ByX2g9q64vAR5AahB3-5hAH9DdME220JmWoOTgQfZ_0ZrYRXPpyhnHQ/exec";
+  "https://script.google.com/macros/s/AKfycbxalbLbNad6Ni2EmsbbuYqj4uCuJGoOQ1kEJP6ky4kjWKXVnmhrW6Dci3WgrbpKASvy/exec";
 
 function pickLine(notes: string, label: string): string {
   const re = new RegExp(`^${label}\\s*:\\s*(.*)$`, "m");
@@ -145,7 +177,29 @@ export default function Order_Detail(): JSX.Element {
 
           <div><b>ประเภทงาน:</b> {view.order.projectName || "-"}</div>
           <div><b>จำนวนสั่ง:</b> {view.order.quantity || "-"}</div>
-          <div className="whitespace-pre-wrap"><b>ไฟล์:</b> {view.order.files || "-"}</div>
+          <div className="text-sm">
+          <b>ไฟล์:</b>{" "}
+          {(() => {
+            const links = parseFileLinks(view.order.files || "");
+            if (links.length === 0) return "-";
+            return (
+              <ul className="mt-1 space-y-1">
+                {links.map((f, i) => (
+                  <li key={`${f.name}-${i}`}>
+                    {f.url ? (
+                      <a href={f.url} target="_blank" rel="noreferrer" className="underline">
+                        {f.name}
+                      </a>
+                    ) : (
+                      <span>{f.name}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            );
+          })()}
+        </div>
+
 
           {view.cleanNotes && (
             <>

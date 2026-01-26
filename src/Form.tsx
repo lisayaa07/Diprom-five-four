@@ -9,7 +9,6 @@ import Printer from "./components/Printer";
 import SearchBox from "./components/Search_Box";
 import { useSearchParams } from "react-router-dom";
 
-
 type Project = { gid: string; name: string; resource_type?: string };
 type State<T> =
   | { status: "loading"; data: null; error: null }
@@ -29,6 +28,35 @@ interface GridTask {
 const getTaskGid = (resp: GridTask): string | undefined => {
   return resp?.data?.gid || resp?.gid || resp?.data?.data?.gid;
 };
+
+type FileLink = { name: string; url: string };
+
+type AsanaAttachment = {
+  gid: string;
+  name: string;
+  permanent_url?: string;
+};
+
+const parseUploadAttachment = (j: unknown): AsanaAttachment | null => {
+  if (!j || typeof j !== "object") return null;
+
+  // ✅ รองรับทั้ง {data:{...}} และ {...}
+  const root = j as any;
+  const data = (root.data && typeof root.data === "object") ? root.data : root;
+
+  const gid = data?.gid;
+  const name = data?.name;
+  const permanent_url = data?.permanent_url;
+
+  if (typeof gid !== "string" || typeof name !== "string") return null;
+
+  return {
+    gid,
+    name,
+    permanent_url: typeof permanent_url === "string" ? permanent_url : undefined,
+  };
+};
+
 
 function Form(): JSX.Element {
   const [projectsState, setProjectsState] = useState<State<Project[]>>({
@@ -102,74 +130,73 @@ function Form(): JSX.Element {
 
   const [searchParams] = useSearchParams();
 
-useEffect(() => {
-  const orderId = searchParams.get("order_id");
-  if (!orderId) return;
+  useEffect(() => {
+    const orderId = searchParams.get("order_id");
+    if (!orderId) return;
 
-  const run = async () => {
-    const GAS_URL =
-      "https://script.google.com/macros/s/AKfycbyMeWdrpkC-sg-ByX2g9q64vAR5AahB3-5hAH9DdME220JmWoOTgQfZ_0ZrYRXPpyhnHQ/exec";
+    const run = async () => {
+      const GAS_URL =
+        "https://script.google.com/macros/s/AKfycbxalbLbNad6Ni2EmsbbuYqj4uCuJGoOQ1kEJP6ky4kjWKXVnmhrW6Dci3WgrbpKASvy/exec";
 
-    const url = new URL(GAS_URL);
-    url.searchParams.set("action", "getOrderById");
-    url.searchParams.set("order_id", orderId);
+      const url = new URL(GAS_URL);
+      url.searchParams.set("action", "getOrderById");
+      url.searchParams.set("order_id", orderId);
 
-    const res = await fetch(url.toString());
-    const text = await res.text();
-    const json = JSON.parse(text) as {
-      ok: boolean;
-      found?: boolean;
-      user?: { tax?: string; companyName?: string } | null;
-      order?: {
-        customerName?: string;
-        phone?: string;
-        email?: string;
-        line?: string;
-        address?: string;
-        startDate?: string;
-        endDate?: string;
-        projectName?: string;
-        quantity?: string;
-        notes?: string;
+      const res = await fetch(url.toString());
+      const text = await res.text();
+      const json = JSON.parse(text) as {
+        ok: boolean;
+        found?: boolean;
+        user?: { tax?: string; companyName?: string } | null;
+        order?: {
+          customerName?: string;
+          phone?: string;
+          email?: string;
+          line?: string;
+          address?: string;
+          startDate?: string;
+          endDate?: string;
+          projectName?: string;
+          quantity?: string;
+          notes?: string;
+        };
+        error?: string;
       };
-      error?: string;
+
+      if (!res.ok) throw new Error(`GAS HTTP ${res.status}\n${text}`);
+      if (!json.ok) throw new Error(json.error || "GAS ok:false");
+      if (!json.found || !json.order) return;
+
+      // เติมข้อมูลลง formData
+      setFormData((prev) => ({
+        ...prev,
+        tax_id: json.user?.tax ?? prev.tax_id,
+        company: json.user?.companyName ?? prev.company,
+        fullName: String(json.order?.customerName ?? ""),
+        phoneNumber: String(json.order?.phone ?? ""),
+        email: String(json.order?.email ?? ""),
+        lineId: String(json.order?.line ?? ""),
+        address: String(json.order?.address ?? ""),
+        jobName: String(json.order?.projectName ?? prev.jobName), // ถ้าคุณอยากเอาชื่องานเก่า แนะนำเก็บเพิ่มในชีทภายหลัง
+        quantity: String(json.order?.quantity ?? ""),
+        startDate: String(json.order?.startDate ?? ""),
+        endDate: String(json.order?.endDate ?? ""),
+        extra: "",
+      }));
+
+      // ตั้ง selectedProject จาก "ชื่อโปรเจกต์" (เพราะในชีทเราเก็บเป็นชื่อ)
+      const projectName = String(json.order.projectName ?? "");
+      if (projectsState.status === "success" && projectName) {
+        const match = projectsState.data.find((p) => p.name === projectName);
+        if (match) setSelectedProjectGid(match.gid);
+      }
     };
 
-    if (!res.ok) throw new Error(`GAS HTTP ${res.status}\n${text}`);
-    if (!json.ok) throw new Error(json.error || "GAS ok:false");
-    if (!json.found || !json.order) return;
-
-    // เติมข้อมูลลง formData
-    setFormData((prev) => ({
-      ...prev,
-      tax_id: json.user?.tax ?? prev.tax_id,
-      company: json.user?.companyName ?? prev.company,
-      fullName: String(json.order?.customerName ?? ""),
-      phoneNumber: String(json.order?.phone ?? ""),
-      email: String(json.order?.email ?? ""),
-      lineId: String(json.order?.line ?? ""),
-      address: String(json.order?.address ?? ""),
-      jobName: String(json.order?.projectName ?? prev.jobName), // ถ้าคุณอยากเอาชื่องานเก่า แนะนำเก็บเพิ่มในชีทภายหลัง
-      quantity: String(json.order?.quantity ?? ""),
-      startDate: String(json.order?.startDate ?? ""),
-      endDate: String(json.order?.endDate ?? ""),
-      extra: "",
-    }));
-
-    // ตั้ง selectedProject จาก "ชื่อโปรเจกต์" (เพราะในชีทเราเก็บเป็นชื่อ)
-    const projectName = String(json.order.projectName ?? "");
-    if (projectsState.status === "success" && projectName) {
-      const match = projectsState.data.find((p) => p.name === projectName);
-      if (match) setSelectedProjectGid(match.gid);
-    }
-  };
-
-  run().catch((e) => {
-    console.error(e);
-  });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [searchParams, projectsState.status]);
-
+    run().catch((e) => {
+      console.error(e);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, projectsState.status]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -374,40 +401,75 @@ useEffect(() => {
       }
 
       const taskGid = getTaskGid(json);
-      if (!taskGid) {
-        throw new Error("สร้าง task สำเร็จแต่หา task gid ไม่เจอจาก response");
-      }
+      const fileLinks: FileLink[] = [];
 
-      //ลองเก็บ database โดยใช้ google app script
+if (files.length > 0) {
+  for (const file of files) {
+    const form = new FormData();
+    form.append("file", file);
+
+    const up = await fetch(`/api/tasks/${taskGid}/attachments`, {
+      method: "POST",
+      body: form,
+    });
+
+    const upText = await up.text();
+    const upJson = JSON.parse(upText);
+
+    const att = parseUploadAttachment(upJson); // ต้องได้ gid + name
+    if (!att?.gid) {
+      fileLinks.push({ name: file.name, url: "" });
+      continue;
+    }
+
+    // ✅ ดึง permanent_url อีกรอบ (ต้องมี API proxy ของคุณ)
+   const metaRes = await fetch(`/api/attachments/${att.gid}?opt_fields=name,permanent_url`);
+      if (!metaRes.ok) {
+        fileLinks.push({ name: att.name ?? file.name, url: "" });
+        continue;
+}
+  const metaJson = await metaRes.json();
+const meta = parseUploadAttachment(metaJson);
+
+   fileLinks.push({
+  name: meta?.name ?? att.name ?? file.name,
+  url: meta?.permanent_url ?? "",
+    });
+  }
+}
+
+
+      // 2) Save ลง Google Sheet (DB) หลัง upload เสร็จ
       const GAS_URL =
-        "https://script.google.com/macros/s/AKfycbyMeWdrpkC-sg-ByX2g9q64vAR5AahB3-5hAH9DdME220JmWoOTgQfZ_0ZrYRXPpyhnHQ/exec";
+        "https://script.google.com/macros/s/AKfycbxalbLbNad6Ni2EmsbbuYqj4uCuJGoOQ1kEJP6ky4kjWKXVnmhrW6Dci3WgrbpKASvy/exec";
 
       const gasRes = await fetch(GAS_URL, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({
-          action: "saveOrder",
-          payload: {
-            user: {
-              tax: formData.tax_id,         // ✅ ใช้ค่าจากฟอร์มจริง
-              companyName: formData.company // ✅ ใช้ค่าจากฟอร์มจริง
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" }, // ✅ กัน preflight
+          body: JSON.stringify({
+            action: "saveOrder",
+            payload: {
+              user: {
+                tax: formData.tax_id,
+                companyName: formData.company,
+              },
+              order: {
+                customerName: formData.fullName,
+                phone: formData.phoneNumber,
+                email: formData.email,
+                line: formData.lineId,
+                address: formData.address,
+                startDate: formData.startDate,
+                endDate: formData.endDate,
+                projectName: selectedProject?.name ?? "",
+                quantity: formData.quantity,
+                notes,
+                files: JSON.stringify(fileLinks), // ✅ เก็บเป็น JSON string
+              },
             },
-            order: {
-              customerName: formData.fullName,
-              phone: formData.phoneNumber,
-              email: formData.email,
-              line: formData.lineId,
-              address: formData.address,
-              startDate: formData.startDate,
-              endDate: formData.endDate,
-              projectName: selectedProject?.name ?? "",
-              quantity: formData.quantity,
-              notes,
-              files: files.map((f) => f.name),
-            },
-          },
-        }),
-      });
+          }),
+        });
+
 
       const gasText = await gasRes.text();
       let gasJson: unknown;
@@ -417,14 +479,10 @@ useEffect(() => {
         gasJson = { raw: gasText };
       }
 
-      console.log("GAS status:", gasRes.status);
-      console.log("GAS response:", gasJson);
-
       if (!gasRes.ok) {
         throw new Error(`GAS HTTP ${gasRes.status}\n${gasText}`);
       }
 
-      // ถ้า GAS ตอบ ok:false ให้ throw ออกมาเลย จะได้เห็นใน result
       if (
         typeof gasJson === "object" &&
         gasJson !== null &&
@@ -434,6 +492,10 @@ useEffect(() => {
         throw new Error(`GAS ok:false\n${JSON.stringify(gasJson, null, 2)}`);
       }
 
+      // ✅ ตอนนี้ค่อยไปทำ subtasks ต่อได้ (ไม่ return กลางทาง)
+
+      // (ถ้าคุณอยาก setResult โชว์ด้วย ทำท้ายสุดหลังทำ subtasks เสร็จ)
+      // setResult("✅ ...");
 
       for (const s of subtasks) {
         const name = s.name.trim();
@@ -485,46 +547,6 @@ useEffect(() => {
         }
       }
 
-      if (files.length > 0) {
-        const uploadResults: any[] = [];
-
-        for (const file of files) {
-          const form = new FormData();
-          form.append("file", file);
-
-          const up = await fetch(`/api/tasks/${taskGid}/attachments`, {
-            method: "POST",
-            body: form,
-          });
-
-          const upText = await up.text();
-          let upJson: any;
-          try {
-            upJson = JSON.parse(upText);
-          } catch {
-            upJson = { raw: upText };
-          }
-
-          if (!up.ok) {
-            throw new Error(
-              `อัปโหลดไฟล์ "${file.name}" ไม่สำเร็จ (HTTP ${up.status})\n` +
-                JSON.stringify(upJson, null, 2),
-            );
-          }
-
-          uploadResults.push({ file: file.name, response: upJson });
-        }
-
-        setResult(
-          "✅ สร้าง Task และแนบไฟล์สำเร็จ\n\n" +
-            "Task response:\n" +
-            JSON.stringify(json, null, 2) +
-            "\n\nUpload results:\n" +
-            JSON.stringify(uploadResults, null, 2),
-        );
-        return;
-      }
-
       // ถ้าไม่มีไฟล์ ก็แสดงผลสร้าง task อย่างเดียว
       setResult("✅ สร้าง Task สำเร็จ\n\n" + JSON.stringify(json, null, 2));
     } catch (e) {
@@ -533,18 +555,16 @@ useEffect(() => {
       setCreating(false);
     }
   };
-  
+
   return (
     <>
       <div className="min-h-screen text-slate-900">
         <header className="mx-auto max-w-3xl px-4 py-10 text-center text-4xl">
           <h2>ใบสั่งพิมพ์งาน</h2>
-         
         </header>
-         <div className="ml-100 mb-6"> 
+        <div className="ml-100 mb-6">
           <SearchBox />
-
-            </div>
+        </div>
 
         <section className="broder border-black-500 ">
           {projectsState.status === "loading" && (
@@ -615,6 +635,9 @@ useEffect(() => {
                       <input
                         name="phoneNumber"
                         value={formData.phoneNumber}
+                        type="tel"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
                         onChange={handleChange}
                         required
                         className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm outline-none focus:border-slate-900"
