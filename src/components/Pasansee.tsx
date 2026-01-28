@@ -57,11 +57,13 @@ function Pasansee() {
             type="text"
             name="pasansee_laxine_color"
             placeholder="กรอกสีแล็กซีน"
-            className="w-[260px] max-w-[55vw] rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base sm:text-sm outline-none focus:border-slate-900"
+            className=" rounded-xl border border-slate-300 bg-white px-3 py-1 text-base sm:text-sm outline-none focus:border-slate-900"
           />
         </div>
       </div>
+       <hr className="my-6 border-slate-200" />
     </div>
+    
   );
 }
 
