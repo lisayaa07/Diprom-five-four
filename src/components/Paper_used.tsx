@@ -44,6 +44,7 @@ function Paper_used() {
           <span className="text-base sm:text-sm text-slate-800">คาร์บอน</span>
         </label>
       </div>
+       <hr className="my-6 border-slate-200" />
     </>
   );
 }
