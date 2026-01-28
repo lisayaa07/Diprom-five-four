@@ -5,24 +5,36 @@ function SearchBox(): JSX.Element {
   const nav = useNavigate();
   const [q, setQ] = useState("");
 
-  return (
-    <div className="ml-120 mb-6">
-      <label>ค้นหาลูกค้า</label>
+  const go = () => {
+    const s = q.trim();
+    if (!s) return;
+    nav(`/search-user?q=${encodeURIComponent(s)}`);
+  };
 
-      <div className="mt-2 flex items-center gap-2">
+  return (
+    <div className="w-full">
+      <label className="block text-sm font-medium text-slate-700">
+        ค้นหาลูกค้า
+      </label>
+
+      <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
         <input
           type="text"
           name="search"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          className="ml-1 rounded-lg border border-slate-300 px-2 py-1 text-base sm:text-sm outline-none focus:border-slate-900"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") go();
+          }}
+          placeholder="พิมพ์ชื่อบริษัท..."
+          className="w-full flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-900"
         />
 
         <button
           type="button"
-          onClick={() => nav(`/search-user?q=${encodeURIComponent(q.trim())}`)}
+          onClick={go}
           disabled={!q.trim()}
-          className="rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-60"
+          className="shrink-0 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
         >
           ค้นหา
         </button>
