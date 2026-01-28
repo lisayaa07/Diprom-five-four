@@ -108,7 +108,18 @@ function Form(): JSX.Element {
         });
 
         const text = await res.text();
-        const json = JSON.parse(text);
+        let json: any = null;
+        try {
+          json = text ? JSON.parse(text) : null;
+        } catch {
+          // ถ้าไม่ใช่ JSON ให้เก็บ raw ไว้ดู
+          json = { raw: text };
+        }
+
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}\n${text}`);
+        }
+
 
         if (!res.ok)
           throw new Error(
