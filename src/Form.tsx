@@ -42,7 +42,7 @@ const parseUploadAttachment = (j: unknown): AsanaAttachment | null => {
 
   // ✅ รองรับทั้ง {data:{...}} และ {...}
   const root = j as any;
-  const data = (root.data && typeof root.data === "object") ? root.data : root;
+  const data = root.data && typeof root.data === "object" ? root.data : root;
 
   const gid = data?.gid;
   const name = data?.name;
@@ -53,10 +53,10 @@ const parseUploadAttachment = (j: unknown): AsanaAttachment | null => {
   return {
     gid,
     name,
-    permanent_url: typeof permanent_url === "string" ? permanent_url : undefined,
+    permanent_url:
+      typeof permanent_url === "string" ? permanent_url : undefined,
   };
 };
-
 
 function Form(): JSX.Element {
   const [projectsState, setProjectsState] = useState<State<Project[]>>({
@@ -87,6 +87,12 @@ function Form(): JSX.Element {
   const [, setResult] = useState<string>("");
   const [creating, setCreating] = useState<boolean>(false);
   const [subtasks, setSubtasks] = useState<SubtaskDraft[]>([]);
+  const [successOpen, setSuccessOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("ส่งใบสั่งพิมพ์สำเร็จ");
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [formError, setFormError] = useState<string>("");
+  const [workType, setWorkType] = useState<string>("");
+
 
   // โหลด projects
   useEffect(() => {
@@ -202,11 +208,51 @@ function Form(): JSX.Element {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+
+    setFormData((prev) => {
+      const next = { ...prev, [name]: value };
+
+      // ถ้าเปลี่ยน startDate แล้ว endDate กลายเป็น "ก่อน" startDate → เคลียร์ endDate
+      if (name === "startDate" && next.endDate && next.endDate < value) {
+        next.endDate = "";
+      }
+
+      return next;
+    });
+  };
+
+  const validate = () => {
+    const e: Record<string, string> = {};
+
+    if (!formData.company.trim()) e.company = "กรุณากรอกชื่อบริษัท/หน่วยงาน";
+    if (!formData.fullName.trim()) e.fullName = "กรุณากรอกชื่อ";
+    if (!formData.phoneNumber.trim()) e.phoneNumber = "กรุณากรอกเบอร์โทร";
+    if (!formData.email.trim()) e.email = "กรุณากรอกอีเมล";
+    if (!formData.address.trim()) e.address = "กรุณากรอกที่อยู่";
+
+    if (!selectedProjectGid) e.project = "กรุณาเลือกประเภทงาน";
+    if (!formData.quantity.trim()) e.quantity = "กรุณากรอกจำนวนสั่ง";
+    if (!formData.jobName.trim()) e.jobName = "กรุณากรอกชื่องาน";
+    if (!formData.startDate.trim()) e.startDate = "กรุณาเลือกวันที่สั่งงาน";
+    if (!formData.endDate.trim()) e.endDate = "กรุณาเลือกวันนัดรับงาน";
+
+    setErrors(e);
+
+    if (Object.keys(e).length > 0) {
+      setFormError("กรุณากรอกข้อมูลให้ครบถ้วน");
+      return false;
+    }
+
+    setFormError("");
+    return true;
   };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (!validate()) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
     setCreating(true);
     setResult("");
 
@@ -403,73 +449,76 @@ function Form(): JSX.Element {
       const taskGid = getTaskGid(json);
       const fileLinks: FileLink[] = [];
 
-if (files.length > 0) {
-  for (const file of files) {
-    const form = new FormData();
-    form.append("file", file);
+      setSuccessMessage("ส่งใบสั่งพิมพ์สำเร็จ");
+      setSuccessOpen(true);
 
-    const up = await fetch(`/api/tasks/${taskGid}/attachments`, {
-      method: "POST",
-      body: form,
-    });
+      if (files.length > 0) {
+        for (const file of files) {
+          const form = new FormData();
+          form.append("file", file);
 
-    const upText = await up.text();
-    const upJson = JSON.parse(upText);
+          const up = await fetch(`/api/tasks/${taskGid}/attachments`, {
+            method: "POST",
+            body: form,
+          });
 
-    const att = parseUploadAttachment(upJson); // ต้องได้ gid + name
-    if (!att?.gid) {
-      fileLinks.push({ name: file.name, url: "" });
-      continue;
-    }
+          const upText = await up.text();
+          const upJson = JSON.parse(upText);
 
-    // ✅ ดึง permanent_url อีกรอบ (ต้องมี API proxy ของคุณ)
-   const metaRes = await fetch(`/api/attachments/${att.gid}?opt_fields=name,permanent_url`);
-      if (!metaRes.ok) {
-        fileLinks.push({ name: att.name ?? file.name, url: "" });
-        continue;
-}
-  const metaJson = await metaRes.json();
-const meta = parseUploadAttachment(metaJson);
+          const att = parseUploadAttachment(upJson); // ต้องได้ gid + name
+          if (!att?.gid) {
+            fileLinks.push({ name: file.name, url: "" });
+            continue;
+          }
 
-   fileLinks.push({
-  name: meta?.name ?? att.name ?? file.name,
-  url: meta?.permanent_url ?? "",
-    });
-  }
-}
+          // ✅ ดึง permanent_url อีกรอบ (ต้องมี API proxy ของคุณ)
+          const metaRes = await fetch(
+            `/api/attachments/${att.gid}?opt_fields=name,permanent_url`,
+          );
+          if (!metaRes.ok) {
+            fileLinks.push({ name: att.name ?? file.name, url: "" });
+            continue;
+          }
+          const metaJson = await metaRes.json();
+          const meta = parseUploadAttachment(metaJson);
 
+          fileLinks.push({
+            name: meta?.name ?? att.name ?? file.name,
+            url: meta?.permanent_url ?? "",
+          });
+        }
+      }
 
       // 2) Save ลง Google Sheet (DB) หลัง upload เสร็จ
       const GAS_URL =
         "https://script.google.com/macros/s/AKfycbxalbLbNad6Ni2EmsbbuYqj4uCuJGoOQ1kEJP6ky4kjWKXVnmhrW6Dci3WgrbpKASvy/exec";
 
       const gasRes = await fetch(GAS_URL, {
-          method: "POST",
-          headers: { "Content-Type": "text/plain;charset=utf-8" }, // ✅ กัน preflight
-          body: JSON.stringify({
-            action: "saveOrder",
-            payload: {
-              user: {
-                tax: formData.tax_id,
-                companyName: formData.company,
-              },
-              order: {
-                customerName: formData.fullName,
-                phone: formData.phoneNumber,
-                email: formData.email,
-                line: formData.lineId,
-                address: formData.address,
-                startDate: formData.startDate,
-                endDate: formData.endDate,
-                projectName: selectedProject?.name ?? "",
-                quantity: formData.quantity,
-                notes,
-                files: JSON.stringify(fileLinks), // ✅ เก็บเป็น JSON string
-              },
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" }, // ✅ กัน preflight
+        body: JSON.stringify({
+          action: "saveOrder",
+          payload: {
+            user: {
+              tax: formData.tax_id,
+              companyName: formData.company,
             },
-          }),
-        });
-
+            order: {
+              customerName: formData.fullName,
+              phone: formData.phoneNumber,
+              email: formData.email,
+              line: formData.lineId,
+              address: formData.address,
+              startDate: formData.startDate,
+              endDate: formData.endDate,
+              projectName: selectedProject?.name ?? "",
+              quantity: formData.quantity,
+              notes,
+              files: JSON.stringify(fileLinks), // ✅ เก็บเป็น JSON string
+            },
+          },
+        }),
+      });
 
       const gasText = await gasRes.text();
       let gasJson: unknown;
@@ -555,6 +604,11 @@ const meta = parseUploadAttachment(metaJson);
       setCreating(false);
     }
   };
+  const showPaperUsed = workType === "หนังสือ" || workType === "อื่นๆ";
+  const showPasansee = workType === "ฏีกา" || workType === "หนังสือ" || workType === "อื่นๆ";
+  const showBinding  = workType === "ฏีกา" || workType === "หนังสือ" || workType === "อื่นๆ";
+  
+
 
   return (
     <>
@@ -562,7 +616,8 @@ const meta = parseUploadAttachment(metaJson);
         <header className="mx-auto max-w-3xl px-4 py-10 text-center text-4xl">
           <h2>ใบสั่งพิมพ์งาน</h2>
         </header>
-        <div className="ml-100 mb-6">
+
+        <div className="mx-auto max-w-2xl px-4 pb-6">
           <SearchBox />
         </div>
 
@@ -583,8 +638,15 @@ const meta = parseUploadAttachment(metaJson);
             <form
               onSubmit={handleSubmit}
               encType="multipart/form-data"
+              noValidate
               className="mx-auto w-full max-w-3xl space-y-6 px-4 sm:px-6"
             >
+              {formError && (
+                <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+                  {formError}
+                </div>
+              )}
+
               <div className="w-full bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="border border-slate-200 rounded-2xl ">
                   <div className="grid grid-cols-1 md:grid-cols-2 justify-between px-6 py-5">
@@ -604,33 +666,44 @@ const meta = parseUploadAttachment(metaJson);
                     </div>
                   </div>
                   <div className="grid px-6 py-5">
-                    <label>ชื่อบริษัท/หน่วยงาน</label>
+                    <label>
+                      ชื่อบริษัท/หน่วยงาน{" "}
+                      <span className="text-red-600">*</span>
+                    </label>
                     <input
                       name="company"
                       value={formData.company}
                       onChange={handleChange}
-                      required
                       className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm outline-none focus:border-slate-900"
                     />
+                    {errors.company && (
+                      <p className="mt-1 text-xs text-rose-600">
+                        {errors.company}
+                      </p>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 px-6 py-5">
                     <div>
                       <label className="text-base sm:text-sm font-medium text-slate-800">
-                        ลูกค้า
+                        ลูกค้า <span className="text-red-600">*</span>
                       </label>
                       <input
                         name="fullName"
                         value={formData.fullName}
                         onChange={handleChange}
-                        required
                         className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm outline-none focus:border-slate-900"
                       />
+                      {errors.fullName && (
+                        <p className="mt-1 text-xs text-rose-600">
+                          {errors.fullName}
+                        </p>
+                      )}
                     </div>
 
                     <div>
                       <label className="text-base sm:text-sm font-medium text-slate-800">
-                        โทร
+                        โทร <span className="text-red-600">*</span>
                       </label>
                       <input
                         name="phoneNumber"
@@ -639,23 +712,31 @@ const meta = parseUploadAttachment(metaJson);
                         inputMode="numeric"
                         pattern="[0-9]*"
                         onChange={handleChange}
-                        required
                         className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm outline-none focus:border-slate-900"
                       />
+                      {errors.phoneNumber && (
+                        <p className="mt-1 text-xs text-rose-600">
+                          {errors.phoneNumber}
+                        </p>
+                      )}
                     </div>
 
                     <div>
                       <label className="text-base sm:text-sm font-medium text-slate-800">
-                        อีเมล
+                        อีเมล <span className="text-red-600">*</span>
                       </label>
                       <input
                         name="email"
                         type="email"
                         value={formData.email}
                         onChange={handleChange}
-                        required
                         className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm outline-none focus:border-slate-900"
                       />
+                      {errors.email && (
+                        <p className="mt-1 text-xs text-rose-600">
+                          {errors.email}
+                        </p>
+                      )}
                     </div>
 
                     <div>
@@ -672,16 +753,20 @@ const meta = parseUploadAttachment(metaJson);
 
                     <div className="md:col-span-2">
                       <label className="text-base sm:text-sm font-medium text-slate-800">
-                        ที่อยู่
+                        ที่อยู่ <span className="text-red-600">*</span>
                       </label>
                       <textarea
                         name="address"
                         value={formData.address}
                         onChange={handleChange}
-                        required
                         rows={3}
                         className="mt-2 w-full resize-none rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm outline-none focus:border-slate-900"
                       />
+                      {errors.address && (
+                        <p className="mt-1 text-xs text-rose-600">
+                          {errors.address}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -694,33 +779,48 @@ const meta = parseUploadAttachment(metaJson);
                   </h2>
                   <div className="grid grid-cols-2 md:grid-cols-2 gap-6 px-6 py-5">
                     <div>
-                      <label>วันที่สั่งงาน</label>
+                      <label>
+                        วันที่สั่งงาน <span className="text-red-600">*</span>
+                      </label>
                       <input
                         type="date"
                         name="startDate"
                         value={formData.startDate}
                         onChange={handleChange}
-                        required
                         className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base sm:text-sm outline-none focus:border-slate-900"
                       />
+                      {errors.startDate && (
+                        <p className="mt-1 text-xs text-rose-600">
+                          {errors.startDate}
+                        </p>
+                      )}
                     </div>
+
                     <div>
-                      <label>วันนัดรับงาน</label>
+                      <label>
+                        วันที่รับงาน <span className="text-red-600">*</span>
+                      </label>
                       <input
                         type="date"
                         name="endDate"
                         value={formData.endDate}
                         onChange={handleChange}
-                        required
+                        min={formData.startDate || undefined}
                         className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base sm:text-sm outline-none focus:border-slate-900"
                       />
+                      {errors.endDate && (
+                        <p className="mt-1 text-xs text-rose-600">
+                          {errors.endDate}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 px-6 py-5">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                       <div>
                         <label className="text-sm font-medium text-slate-800">
-                          ประเภท (Project)
+                          Project 
+                          <span className="text-red-600">*</span>
                         </label>
                         <select
                           value={selectedProjectGid}
@@ -730,7 +830,7 @@ const meta = parseUploadAttachment(metaJson);
                           className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900"
                         >
                           <option value="" disabled>
-                            ประเภทงาน
+                             เลือกโปรเจกต์ 
                           </option>
                           {projectsState.data.map((p) => (
                             <option key={p.gid} value={p.gid}>
@@ -738,29 +838,66 @@ const meta = parseUploadAttachment(metaJson);
                             </option>
                           ))}
                         </select>
+                        {errors.project && (
+                          <p className="mt-1 text-xs text-rose-600">
+                            {errors.project}
+                          </p>
+                        )}
                       </div>
                       <div>
-                        <label>จำนวนสั่ง</label>
+                        <label>
+                          จำนวนสั่ง <span className="text-red-600">*</span>
+                        </label>
                         <input
                           type="number"
                           name="quantity"
                           value={formData.quantity}
                           onChange={handleChange}
-                          required
                           className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base sm:text-sm outline-none focus:border-slate-900"
                         />
+                        {errors.quantity && (
+                          <p className="mt-1 text-xs text-rose-600">
+                            {errors.quantity}
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div>
-                      <label>ชื่องาน</label>
+                      <label>
+                        ชื่องาน <span className="text-red-600">*</span>
+                      </label>
                       <input
                         name="jobName"
                         value={formData.jobName}
                         onChange={handleChange}
-                        required
                         className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm outline-none focus:border-slate-900"
                       />
+                      {errors.jobName && (
+                        <p className="mt-1 text-xs text-rose-600">
+                          {errors.jobName}
+                        </p>
+                      )}
                     </div>
+                    <div className="text-sm font-medium text-slate-800">
+                          <label>ประเภทงาน</label>
+
+                          <select
+                            value={workType}
+                            onChange={(e) => setWorkType(e.target.value)}
+                            className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900"
+                          >
+                            <option value="" disabled>เลือกประเภทงาน</option>
+                            <option value="การ์ด">การ์ด</option>
+                            <option value="ฏีกา">ฏีกา</option>
+                            <option value="นามบัตร">นามบัตร</option>
+                            <option value="โปสเตอร์">โปสเตอร์</option>
+                            <option value="ใบปลิว">ใบปลิว</option>
+                            <option value="แผ่นพับ">แผ่นพับ</option>
+                            <option value="หนังสือ">หนังสือ</option>
+                            <option value="อื่นๆ">อื่นๆ</option>
+                          </select>
+                        </div>
+
                   </div>
                   <Subtask
                     projects={
@@ -772,33 +909,25 @@ const meta = parseUploadAttachment(metaJson);
                     onChange={setSubtasks}
                     disabled={creating || projectsState.status !== "success"}
                   />
-                  <hr className="my-6 border-slate-200" />
+                   <hr className="my-6 border-slate-200" />
+                 
+                  {showPaperUsed && <Paper_used />}
+        
+                  {showPasansee && <Pasansee />}
 
-                  <Paper_used />
-
-                  <hr className="my-6 border-slate-200" />
-
-                  <Pasansee />
-
-                  <hr className="my-6 border-slate-200" />
-
-                  <Binding />
-
-                  <hr className="my-6 border-slate-200" />
+                  {showBinding && <Binding />}
 
                   <Details files={files} setFiles={setFiles} />
 
-                  <hr className="my-6 border-slate-200" />
-
                   <TypeOfWork />
 
-                  <hr className="my-6 border-slate-200" />
+                  
 
                   <Printer />
                 </div>
               </div>
               {/* ปุ่มส่ง */}
-              <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 pb-10">
+              <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 pb-10 disabled:opacity-50 disabled:cursor-not-allowed">
                 <div className="flex justify-end">
                   <button
                     type="submit"
@@ -808,6 +937,37 @@ const meta = parseUploadAttachment(metaJson);
                     {creating ? "กำลังส่ง..." : "ส่งใบสั่งงาน"}
                   </button>
                 </div>
+                {successOpen && (
+                  <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+                    onClick={() => setSuccessOpen(false)}
+                  >
+                    <div
+                      className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="text-lg font-semibold text-slate-900">
+                        สำเร็จ
+                      </div>
+                      <div className="mt-2 text-sm text-slate-700">
+                        {successMessage}
+                      </div>
+
+                      <div className="mt-6 flex justify-end gap-2">
+                        <button
+                          type="button"
+                          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                          onClick={() => {
+                            setSuccessOpen(false);
+                            window.location.reload(); // ✅ รีเฟรชหลังผู้ใช้กดตกลง
+                          }}
+                        >
+                          ตกลง
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </form>
           )}
