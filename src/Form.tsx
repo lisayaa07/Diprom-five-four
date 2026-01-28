@@ -621,10 +621,10 @@ function Form(): JSX.Element {
           <SearchBox />
         </div>
 
-        <section className="broder border-black-500 ">
+        <section className="min-h-[60vh] flex items-center justify-center pb-16">
           {projectsState.status === "loading" && (
-            <div className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
-              กำลังโหลดรายการโปรเจกต์…
+            <div>
+               <span className="loading loading-spinner loading-xl"></span>
             </div>
           )}
 
@@ -674,7 +674,10 @@ function Form(): JSX.Element {
                       name="company"
                       value={formData.company}
                       onChange={handleChange}
-                      className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm outline-none focus:border-slate-900"
+                       className={[
+                            "mt-2 w-full rounded-xl border bg-white px-3 py-2.5 text-base sm:text-sm outline-none",
+                            errors.company ? "border-rose-400 focus:border-rose-500" : "border-slate-300 focus:border-slate-900",
+                          ].join(" ")}
                     />
                     {errors.company && (
                       <p className="mt-1 text-xs text-rose-600">
@@ -692,7 +695,10 @@ function Form(): JSX.Element {
                         name="fullName"
                         value={formData.fullName}
                         onChange={handleChange}
-                        className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm outline-none focus:border-slate-900"
+                        className={[
+                          "mt-2 w-full rounded-xl border bg-white px-3 py-2.5 text-base sm:text-sm outline-none",
+                          errors.fullName ? "border-rose-400 focus:border-rose-500" : "border-slate-300 focus:border-slate-900",
+                        ].join(" ")}
                       />
                       {errors.fullName && (
                         <p className="mt-1 text-xs text-rose-600">
@@ -712,7 +718,10 @@ function Form(): JSX.Element {
                         inputMode="numeric"
                         pattern="[0-9]*"
                         onChange={handleChange}
-                        className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm outline-none focus:border-slate-900"
+                        className={[
+                            "mt-2 w-full rounded-xl border bg-white px-3 py-2.5 text-base sm:text-sm outline-none",
+                            errors.phoneNumber ? "border-rose-400 focus:border-rose-500" : "border-slate-300 focus:border-slate-900",
+                          ].join(" ")}
                       />
                       {errors.phoneNumber && (
                         <p className="mt-1 text-xs text-rose-600">
@@ -730,7 +739,10 @@ function Form(): JSX.Element {
                         type="email"
                         value={formData.email}
                         onChange={handleChange}
-                        className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm outline-none focus:border-slate-900"
+                        className={[
+                          "mt-2 w-full rounded-xl border bg-white px-3 py-2.5 text-base sm:text-sm outline-none",
+                          errors.email ? "border-rose-400 focus:border-rose-500" : "border-slate-300 focus:border-slate-900",
+                        ].join(" ")}
                       />
                       {errors.email && (
                         <p className="mt-1 text-xs text-rose-600">
@@ -760,7 +772,10 @@ function Form(): JSX.Element {
                         value={formData.address}
                         onChange={handleChange}
                         rows={3}
-                        className="mt-2 w-full resize-none rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm outline-none focus:border-slate-900"
+                       className={[
+                          "mt-2 w-full resize-none rounded-xl border bg-white px-3 py-2.5 text-base sm:text-sm outline-none",
+                          errors.address ? "border-rose-400 focus:border-rose-500" : "border-slate-300 focus:border-slate-900",
+                        ].join(" ")}
                       />
                       {errors.address && (
                         <p className="mt-1 text-xs text-rose-600">
@@ -787,7 +802,10 @@ function Form(): JSX.Element {
                         name="startDate"
                         value={formData.startDate}
                         onChange={handleChange}
-                        className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base sm:text-sm outline-none focus:border-slate-900"
+                       className={[
+                          "mt-2 w-full rounded-xl border bg-white px-3 py-2.5 text-base sm:text-sm outline-none",
+                          errors.startDate ? "border-rose-400 focus:border-rose-500" : "border-slate-300 focus:border-slate-900",
+                        ].join(" ")}
                       />
                       {errors.startDate && (
                         <p className="mt-1 text-xs text-rose-600">
@@ -806,7 +824,10 @@ function Form(): JSX.Element {
                         value={formData.endDate}
                         onChange={handleChange}
                         min={formData.startDate || undefined}
-                        className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base sm:text-sm outline-none focus:border-slate-900"
+                        className={[
+                          "mt-2 w-full rounded-xl border bg-white px-3 py-2.5 text-base sm:text-sm outline-none",
+                          errors.endDate ? "border-rose-400 focus:border-rose-500" : "border-slate-300 focus:border-slate-900",
+                        ].join(" ")}
                       />
                       {errors.endDate && (
                         <p className="mt-1 text-xs text-rose-600">
@@ -827,7 +848,10 @@ function Form(): JSX.Element {
                           onChange={(e) =>
                             setSelectedProjectGid(e.target.value)
                           }
-                          className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900"
+                          className={[
+                          "mt-2 w-full rounded-xl border bg-white px-3 py-2.5 text-base sm:text-sm outline-none",
+                          errors.project ? "border-rose-400 focus:border-rose-500" : "border-slate-300 focus:border-slate-900",
+                        ].join(" ")}
                         >
                           <option value="" disabled>
                              เลือกโปรเจกต์ 
@@ -848,13 +872,18 @@ function Form(): JSX.Element {
                         <label>
                           จำนวนสั่ง <span className="text-red-600">*</span>
                         </label>
-                        <input
+                       <input
                           type="number"
                           name="quantity"
                           value={formData.quantity}
                           onChange={handleChange}
-                          className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base sm:text-sm outline-none focus:border-slate-900"
+                          min={1}
+                          required
+                          className={`mt-2 w-full rounded-xl border bg-white px-3 py-2.5 text-base sm:text-sm outline-none focus:border-slate-900 ${
+                            errors.quantity ? "border-rose-500" : "border-slate-300"
+                          }`}
                         />
+
                         {errors.quantity && (
                           <p className="mt-1 text-xs text-rose-600">
                             {errors.quantity}
@@ -870,7 +899,10 @@ function Form(): JSX.Element {
                         name="jobName"
                         value={formData.jobName}
                         onChange={handleChange}
-                        className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm outline-none focus:border-slate-900"
+                        className={[
+                          "mt-2 w-full rounded-xl border bg-white px-3 py-2.5 text-base sm:text-sm outline-none",
+                          errors.jobName ? "border-rose-400 focus:border-rose-500" : "border-slate-300 focus:border-slate-900",
+                        ].join(" ")}
                       />
                       {errors.jobName && (
                         <p className="mt-1 text-xs text-rose-600">
@@ -879,7 +911,7 @@ function Form(): JSX.Element {
                       )}
                     </div>
                     <div className="text-sm font-medium text-slate-800">
-                          <label>ประเภทงาน</label>
+                          <label>ประเภทงาน <span className="text-red-600">*</span></label>
 
                           <select
                             value={workType}
