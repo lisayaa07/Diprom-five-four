@@ -259,6 +259,7 @@ function Binding() {
           </div>
         </div>
       </div>
+       <hr className="my-6 border-slate-200" />
     </>
   );
 }
