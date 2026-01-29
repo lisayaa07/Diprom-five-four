@@ -98,7 +98,7 @@ function Form(): JSX.Element {
 
 
 const resetForm = () => {
-  // 1. ล้างข้อมูลใน formData ทั้งหมด
+  //ล้างข้อมูลใน formData ทั้งหมด
   setFormData({
     tax_id: "",
     company: "",
@@ -114,20 +114,19 @@ const resetForm = () => {
     endDate: "",
   });
 
-  // 2. ล้างค่าการเลือกโปรเจกต์และประเภทงาน (สำคัญมาก)
+
   setSelectedProjectGid("");
   setWorkType("");
 
-  // 3. ล้างรายการ Subtasks และไฟล์ที่เลือกไว้
+  
   setSubtasks([]);
   setFiles([]);
 
-  // 4. ล้าง Error และข้อความแจ้งเตือนต่างๆ
   setErrors({});
   setFormError("");
   setDebug("");
 
-  // 5. เปลี่ยน Key เพื่อบังคับให้ Component ลูก (Details, Printer ฯลฯ) รีโหลดใหม่
+ 
   setDetailsKey((prev) => prev + 1);
 };
 
@@ -509,7 +508,7 @@ const resetForm = () => {
             continue;
           }
 
-          // ✅ ดึง permanent_url อีกรอบ (ต้องมี API proxy ของคุณ)
+          
           const metaRes = await fetch(
             `/api/attachments/${att.gid}?opt_fields=name,permanent_url`,
           );
@@ -579,61 +578,54 @@ const resetForm = () => {
         throw new Error(`GAS ok:false\n${JSON.stringify(gasJson, null, 2)}`);
       }
 
-      // ✅ ตอนนี้ค่อยไปทำ subtasks ต่อได้ (ไม่ return กลางทาง)
+    
+     for (const s of subtasks) {
+  const name = s.name.trim();
+  if (!name) continue;
 
-      // (ถ้าคุณอยาก setResult โชว์ด้วย ทำท้ายสุดหลังทำ subtasks เสร็จ)
-      // setResult("✅ ...");
+  try {
+    const subRes = await fetch(`/api/tasks/${taskGid}/subtasks`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "X-Tunnel-Skip-AntiPhishing-Page": "True",
+      },
+      body: JSON.stringify({ data: { name } }),
+    });
 
-      for (const s of subtasks) {
-        const name = s.name.trim();
-        if (!name) continue;
+    const subText = await subRes.text();
+    let subJson: any;
+    try { subJson = JSON.parse(subText); } catch { subJson = { raw: subText }; }
 
-        // สร้าง subtask ใต้ task แม่
-        const subRes = await fetch(`/api/tasks/${taskGid}/subtasks`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            "X-Tunnel-Skip-AntiPhishing-Page": "True",
-          },
-          body: JSON.stringify({ data: { name } }),
-        });
+    if (!subRes.ok) {
+      throw new Error(`create subtask HTTP ${subRes.status}\n${subText}`);
+    }
 
-        const subText = await subRes.text();
-        const subJson = JSON.parse(subText) as {
-          data?: { gid?: string };
-          gid?: string;
-        };
+    const subGid = subJson?.data?.gid || subJson?.gid;
+    if (!subGid) throw new Error("สร้าง subtask สำเร็จแต่หา gid ไม่เจอ");
 
-        if (!subRes.ok) {
-          throw new Error(
-            `POST /tasks/${taskGid}/subtasks failed (HTTP ${subRes.status})\n${JSON.stringify(subJson, null, 2)}`,
-          );
-        }
+    if (s.projectGid) {
+      const addRes = await fetch(`/api/tasks/${subGid}/addProject`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "X-Tunnel-Skip-AntiPhishing-Page": "True",
+        },
+        body: JSON.stringify({ data: { project: s.projectGid } }),
+      });
 
-        const subGid = subJson.data?.gid || subJson.gid;
-        if (!subGid) throw new Error("สร้าง subtask สำเร็จแต่หา gid ไม่เจอ");
-
-        if (s.projectGid) {
-          const addRes = await fetch(`/api/tasks/${subGid}/addProject`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Accept: "application/json",
-              "X-Tunnel-Skip-AntiPhishing-Page": "True",
-            },
-            body: JSON.stringify({ data: { project: s.projectGid } }),
-
-          });
-
-          if (!addRes.ok) {
-            const addText = await addRes.text();
-            throw new Error(
-              `addProject failed (HTTP ${addRes.status})\n${addText}`,
-            );
-          }
-        }
+      if (!addRes.ok) {
+        const addText = await addRes.text();
+        throw new Error(`addProject HTTP ${addRes.status}\n${addText}`);
       }
+    }
+  } catch (err) {
+    console.error("subtask failed:", s, err);
+    // ไม่ throw เพื่อให้ไปสร้างตัวถัดไปต่อ
+  }
+}
 
       // ถ้าไม่มีไฟล์ ก็แสดงผลสร้าง task อย่างเดียว
       
