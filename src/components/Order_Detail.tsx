@@ -55,7 +55,7 @@ function parseFileLinks(raw: string): FileLink[] {
 
 
 const GAS_URL =
-  "https://script.google.com/macros/s/AKfycbxalbLbNad6Ni2EmsbbuYqj4uCuJGoOQ1kEJP6ky4kjWKXVnmhrW6Dci3WgrbpKASvy/exec";
+  "https://script.google.com/macros/s/AKfycbxyAK1Kqz8xPCOFdbUECiFQNMRcEMWhNoygkyV_Y0jVISpAcHjH3rGpAaZqqbE_sDVN5w/exec";
 
 function pickLine(notes: string, label: string): string {
   const re = new RegExp(`^${label}\\s*:\\s*(.*)$`, "m");

@@ -92,6 +92,44 @@ function Form(): JSX.Element {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string>("");
   const [workType, setWorkType] = useState<string>("");
+  const [detailsKey, setDetailsKey] = useState(0);
+  const [debug, setDebug] = useState<string>("");
+
+
+
+const resetForm = () => {
+  // 1. ล้างข้อมูลใน formData ทั้งหมด
+  setFormData({
+    tax_id: "",
+    company: "",
+    fullName: "",
+    phoneNumber: "",
+    email: "",
+    lineId: "",
+    address: "",
+    extra: "",
+    jobName: "",
+    quantity: "",
+    startDate: "",
+    endDate: "",
+  });
+
+  // 2. ล้างค่าการเลือกโปรเจกต์และประเภทงาน (สำคัญมาก)
+  setSelectedProjectGid("");
+  setWorkType("");
+
+  // 3. ล้างรายการ Subtasks และไฟล์ที่เลือกไว้
+  setSubtasks([]);
+  setFiles([]);
+
+  // 4. ล้าง Error และข้อความแจ้งเตือนต่างๆ
+  setErrors({});
+  setFormError("");
+  setDebug("");
+
+  // 5. เปลี่ยน Key เพื่อบังคับให้ Component ลูก (Details, Printer ฯลฯ) รีโหลดใหม่
+  setDetailsKey((prev) => prev + 1);
+};
 
 
   // โหลด projects
@@ -142,7 +180,7 @@ function Form(): JSX.Element {
 
     const run = async () => {
       const GAS_URL =
-        "https://script.google.com/macros/s/AKfycbxalbLbNad6Ni2EmsbbuYqj4uCuJGoOQ1kEJP6ky4kjWKXVnmhrW6Dci3WgrbpKASvy/exec";
+        "https://script.google.com/macros/s/AKfycbxyAK1Kqz8xPCOFdbUECiFQNMRcEMWhNoygkyV_Y0jVISpAcHjH3rGpAaZqqbE_sDVN5w/exec";
 
       const url = new URL(GAS_URL);
       url.searchParams.set("action", "getOrderById");
@@ -447,10 +485,10 @@ function Form(): JSX.Element {
       }
 
       const taskGid = getTaskGid(json);
+      if (!taskGid) throw new Error("สร้าง Task แล้ว แต่ไม่ได้ taskGid (response shape ไม่ตรง)");
       const fileLinks: FileLink[] = [];
 
-      setSuccessMessage("ส่งใบสั่งพิมพ์สำเร็จ");
-      setSuccessOpen(true);
+      
 
       if (files.length > 0) {
         for (const file of files) {
@@ -491,7 +529,7 @@ function Form(): JSX.Element {
 
       // 2) Save ลง Google Sheet (DB) หลัง upload เสร็จ
       const GAS_URL =
-        "https://script.google.com/macros/s/AKfycbxalbLbNad6Ni2EmsbbuYqj4uCuJGoOQ1kEJP6ky4kjWKXVnmhrW6Dci3WgrbpKASvy/exec";
+        "https://script.google.com/macros/s/AKfycbxyAK1Kqz8xPCOFdbUECiFQNMRcEMWhNoygkyV_Y0jVISpAcHjH3rGpAaZqqbE_sDVN5w/exec";
 
       const gasRes = await fetch(GAS_URL, {
         method: "POST",
@@ -584,7 +622,8 @@ function Form(): JSX.Element {
               Accept: "application/json",
               "X-Tunnel-Skip-AntiPhishing-Page": "True",
             },
-            body: JSON.stringify({ project: s.projectGid }),
+            body: JSON.stringify({ data: { project: s.projectGid } }),
+
           });
 
           if (!addRes.ok) {
@@ -597,9 +636,17 @@ function Form(): JSX.Element {
       }
 
       // ถ้าไม่มีไฟล์ ก็แสดงผลสร้าง task อย่างเดียว
+      
+      setSuccessMessage("ส่งใบสั่งพิมพ์สำเร็จ");
+      setSuccessOpen(true);
+ 
       setResult("✅ สร้าง Task สำเร็จ\n\n" + JSON.stringify(json, null, 2));
+        
     } catch (e) {
       setResult("❌ Error\n\n" + (e instanceof Error ? e.message : String(e)));
+      const msg = e instanceof Error ? e.message : String(e);
+      setFormError(msg);       
+      setDebug(msg);   
     } finally {
       setCreating(false);
     }
@@ -607,7 +654,8 @@ function Form(): JSX.Element {
   const showPaperUsed = workType === "หนังสือ" || workType === "อื่นๆ";
   const showPasansee = workType === "ฏีกา" || workType === "หนังสือ" || workType === "อื่นๆ";
   const showBinding  = workType === "ฏีกา" || workType === "หนังสือ" || workType === "อื่นๆ";
-  
+
+
 
 
   return (
@@ -645,6 +693,11 @@ function Form(): JSX.Element {
                 <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
                   {formError}
                 </div>
+              )}
+              {debug && (
+                <pre className="mt-3 whitespace-pre-wrap rounded-xl bg-slate-100 p-3 text-xs text-slate-800">
+                  {debug}
+                </pre>
               )}
 
               <div className="w-full bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
@@ -917,7 +970,9 @@ function Form(): JSX.Element {
 
                   {showBinding && <Binding />}
 
-                  <Details files={files} setFiles={setFiles} />
+                  <Details key={detailsKey} files={files} setFiles={setFiles} />
+
+
 
                   <TypeOfWork />
 
@@ -940,8 +995,11 @@ function Form(): JSX.Element {
                 {successOpen && (
                   <div
                     className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-                    onClick={() => setSuccessOpen(false)}
-                  >
+                     onClick={() => {
+                          setSuccessOpen(false);
+                          
+                        }}
+                       >
                     <div
                       className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
                       onClick={(e) => e.stopPropagation()}
@@ -954,16 +1012,20 @@ function Form(): JSX.Element {
                       </div>
 
                       <div className="mt-6 flex justify-end gap-2">
-                        <button
-                          type="button"
-                          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-                          onClick={() => {
-                            setSuccessOpen(false);
-                            window.location.reload(); // ✅ รีเฟรชหลังผู้ใช้กดตกลง
-                          }}
-                        >
-                          ตกลง
-                        </button>
+                       <button
+                            type="button"
+                            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                            onClick={() => {
+                              // ปิด Modal ก่อน
+                              setSuccessOpen(false);
+                              // เรียกใช้ resetForm ทันที
+                              resetForm();
+                              // เลื่อนหน้าจอกลับไปด้านบนสุดเพื่อให้พร้อมกรอกใหม่
+                              window.scrollTo({ top: 0, behavior: "smooth" });
+                            }}
+                          >
+                            ตกลง
+                          </button>
                       </div>
                     </div>
                   </div>
