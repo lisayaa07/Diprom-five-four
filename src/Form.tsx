@@ -153,7 +153,7 @@ function Form(): JSX.Element {
 
     const run = async () => {
       const GAS_URL =
-        "https://script.google.com/macros/s/AKfycbxalbLbNad6Ni2EmsbbuYqj4uCuJGoOQ1kEJP6ky4kjWKXVnmhrW6Dci3WgrbpKASvy/exec";
+        "https://script.google.com/macros/s/AKfycbzsTiJHWTwdmJZVANSXlhqNR3Z-uhuJ0OHb9KbFZEXrOMcOJLxHk4A1XcdbbejmLOtbow/exec";
 
       const url = new URL(GAS_URL);
       url.searchParams.set("action", "getOrderById");
@@ -502,7 +502,7 @@ function Form(): JSX.Element {
 
       // 2) Save ลง Google Sheet (DB) หลัง upload เสร็จ
       const GAS_URL =
-        "https://script.google.com/macros/s/AKfycbxalbLbNad6Ni2EmsbbuYqj4uCuJGoOQ1kEJP6ky4kjWKXVnmhrW6Dci3WgrbpKASvy/exec";
+        "https://script.google.com/macros/s/AKfycbwqVE78IHkRADcNUdvo8t1Tx4793V_JtOgFM13d_ZvcwgydsObhif5GMDYmlgkhugc4BA/exec";
 
       const gasRes = await fetch(GAS_URL, {
         method: "POST",

@@ -59,7 +59,7 @@ function parseFileLinks(raw: string): FileLink[] {
 }
 
 const GAS_URL =
-  "https://script.google.com/macros/s/AKfycbxalbLbNad6Ni2EmsbbuYqj4uCuJGoOQ1kEJP6ky4kjWKXVnmhrW6Dci3WgrbpKASvy/exec";
+  "https://script.google.com/macros/s/AKfycbwqVE78IHkRADcNUdvo8t1Tx4793V_JtOgFM13d_ZvcwgydsObhif5GMDYmlgkhugc4BA/exec";
 
 export default function Searh_User(): JSX.Element {
   const [params] = useSearchParams();
