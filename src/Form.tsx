@@ -93,43 +93,35 @@ function Form(): JSX.Element {
   const [formError, setFormError] = useState<string>("");
   const [workType, setWorkType] = useState<string>("");
   const [detailsKey, setDetailsKey] = useState(0);
-  const [debug, setDebug] = useState<string>("");
 
+  const resetForm = () => {
+    //ล้างข้อมูลใน formData ทั้งหมด
+    setFormData({
+      tax_id: "",
+      company: "",
+      fullName: "",
+      phoneNumber: "",
+      email: "",
+      lineId: "",
+      address: "",
+      extra: "",
+      jobName: "",
+      quantity: "",
+      startDate: "",
+      endDate: "",
+    });
 
+    setSelectedProjectGid("");
+    setWorkType("");
 
-const resetForm = () => {
-  //ล้างข้อมูลใน formData ทั้งหมด
-  setFormData({
-    tax_id: "",
-    company: "",
-    fullName: "",
-    phoneNumber: "",
-    email: "",
-    lineId: "",
-    address: "",
-    extra: "",
-    jobName: "",
-    quantity: "",
-    startDate: "",
-    endDate: "",
-  });
+    setSubtasks([]);
+    setFiles([]);
 
+    setErrors({});
+    setFormError("");
 
-  setSelectedProjectGid("");
-  setWorkType("");
-
-  
-  setSubtasks([]);
-  setFiles([]);
-
-  setErrors({});
-  setFormError("");
-  setDebug("");
-
- 
-  setDetailsKey((prev) => prev + 1);
-};
-
+    setDetailsKey((prev) => prev + 1);
+  };
 
   // โหลด projects
   useEffect(() => {
@@ -484,10 +476,11 @@ const resetForm = () => {
       }
 
       const taskGid = getTaskGid(json);
-      if (!taskGid) throw new Error("สร้าง Task แล้ว แต่ไม่ได้ taskGid (response shape ไม่ตรง)");
+      if (!taskGid)
+        throw new Error(
+          "สร้าง Task แล้ว แต่ไม่ได้ taskGid (response shape ไม่ตรง)",
+        );
       const fileLinks: FileLink[] = [];
-
-      
 
       if (files.length > 0) {
         for (const file of files) {
@@ -508,7 +501,6 @@ const resetForm = () => {
             continue;
           }
 
-          
           const metaRes = await fetch(
             `/api/attachments/${att.gid}?opt_fields=name,permanent_url`,
           );
@@ -526,7 +518,7 @@ const resetForm = () => {
         }
       }
 
-      // 2) Save ลง Google Sheet (DB) หลัง upload เสร็จ
+
       const GAS_URL =
         "https://script.google.com/macros/s/AKfycbxyAK1Kqz8xPCOFdbUECiFQNMRcEMWhNoygkyV_Y0jVISpAcHjH3rGpAaZqqbE_sDVN5w/exec";
 
@@ -578,77 +570,77 @@ const resetForm = () => {
         throw new Error(`GAS ok:false\n${JSON.stringify(gasJson, null, 2)}`);
       }
 
-    
-     for (const s of subtasks) {
-  const name = s.name.trim();
-  if (!name) continue;
+      for (const s of subtasks) {
+        const name = s.name.trim();
+        if (!name) continue;
 
-  try {
-    const subRes = await fetch(`/api/tasks/${taskGid}/subtasks`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        "X-Tunnel-Skip-AntiPhishing-Page": "True",
-      },
-      body: JSON.stringify({ data: { name } }),
-    });
+        try {
+          const subRes = await fetch(`/api/tasks/${taskGid}/subtasks`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+              "X-Tunnel-Skip-AntiPhishing-Page": "True",
+            },
+            body: JSON.stringify({ data: { name } }),
+          });
 
-    const subText = await subRes.text();
-    let subJson: any;
-    try { subJson = JSON.parse(subText); } catch { subJson = { raw: subText }; }
+          const subText = await subRes.text();
+          let subJson: any;
+          try {
+            subJson = JSON.parse(subText);
+          } catch {
+            subJson = { raw: subText };
+          }
 
-    if (!subRes.ok) {
-      throw new Error(`create subtask HTTP ${subRes.status}\n${subText}`);
-    }
+          if (!subRes.ok) {
+            throw new Error(`create subtask HTTP ${subRes.status}\n${subText}`);
+          }
 
-    const subGid = subJson?.data?.gid || subJson?.gid;
-    if (!subGid) throw new Error("สร้าง subtask สำเร็จแต่หา gid ไม่เจอ");
+          const subGid = subJson?.data?.gid || subJson?.gid;
+          if (!subGid) throw new Error("สร้าง subtask สำเร็จแต่หา gid ไม่เจอ");
 
-    if (s.projectGid) {
-      const addRes = await fetch(`/api/tasks/${subGid}/addProject`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          "X-Tunnel-Skip-AntiPhishing-Page": "True",
-        },
-        body: JSON.stringify({ data: { project: s.projectGid } }),
-      });
+          if (s.projectGid) {
+            const addRes = await fetch(`/api/tasks/${subGid}/addProject`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+                "X-Tunnel-Skip-AntiPhishing-Page": "True",
+              },
+              body: JSON.stringify({ data: { project: s.projectGid } }),
+            });
 
-      if (!addRes.ok) {
-        const addText = await addRes.text();
-        throw new Error(`addProject HTTP ${addRes.status}\n${addText}`);
+            if (!addRes.ok) {
+              const addText = await addRes.text();
+              throw new Error(`addProject HTTP ${addRes.status}\n${addText}`);
+            }
+          }
+        } catch (err) {
+          console.error("subtask failed:", s, err);
+          // ไม่ throw เพื่อให้ไปสร้างตัวถัดไปต่อ
+        }
       }
-    }
-  } catch (err) {
-    console.error("subtask failed:", s, err);
-    // ไม่ throw เพื่อให้ไปสร้างตัวถัดไปต่อ
-  }
-}
 
       // ถ้าไม่มีไฟล์ ก็แสดงผลสร้าง task อย่างเดียว
-      
+
       setSuccessMessage("ส่งใบสั่งพิมพ์สำเร็จ");
       setSuccessOpen(true);
- 
+
       setResult("✅ สร้าง Task สำเร็จ\n\n" + JSON.stringify(json, null, 2));
-        
     } catch (e) {
       setResult("❌ Error\n\n" + (e instanceof Error ? e.message : String(e)));
       const msg = e instanceof Error ? e.message : String(e);
-      setFormError(msg);       
-      setDebug(msg);   
+      setFormError(msg);
     } finally {
       setCreating(false);
     }
   };
   const showPaperUsed = workType === "หนังสือ" || workType === "อื่นๆ";
-  const showPasansee = workType === "ฏีกา" || workType === "หนังสือ" || workType === "อื่นๆ";
-  const showBinding  = workType === "ฏีกา" || workType === "หนังสือ" || workType === "อื่นๆ";
-
-
-
+  const showPasansee =
+    workType === "ฏีกา" || workType === "หนังสือ" || workType === "อื่นๆ";
+  const showBinding =
+    workType === "ฏีกา" || workType === "หนังสือ" || workType === "อื่นๆ";
 
   return (
     <>
@@ -686,11 +678,6 @@ const resetForm = () => {
                   {formError}
                 </div>
               )}
-              {debug && (
-                <pre className="mt-3 whitespace-pre-wrap rounded-xl bg-slate-100 p-3 text-xs text-slate-800">
-                  {debug}
-                </pre>
-              )}
 
               <div className="w-full bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="border border-slate-200 rounded-2xl ">
@@ -719,8 +706,14 @@ const resetForm = () => {
                       name="company"
                       value={formData.company}
                       onChange={handleChange}
-                      className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm outline-none focus:border-slate-900"
-                    />
+                      className={`mt-2 w-full rounded-xl px-3 py-2.5 text-base sm:text-sm outline-none
+                          ${
+                            errors.fullName
+                              ? "border border-rose-500 focus:border-rose-600"
+                              : "border border-slate-300 focus:border-slate-900"
+                          }
+                        `}
+                                          />
                     {errors.company && (
                       <p className="mt-1 text-xs text-rose-600">
                         {errors.company}
@@ -737,7 +730,13 @@ const resetForm = () => {
                         name="fullName"
                         value={formData.fullName}
                         onChange={handleChange}
-                        className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm outline-none focus:border-slate-900"
+                        className={`mt-2 w-full rounded-xl px-3 py-2.5 text-base sm:text-sm outline-none
+                          ${
+                            errors.fullName
+                              ? "border border-rose-500 focus:border-rose-600"
+                              : "border border-slate-300 focus:border-slate-900"
+                          }
+                        `}
                       />
                       {errors.fullName && (
                         <p className="mt-1 text-xs text-rose-600">
@@ -757,7 +756,13 @@ const resetForm = () => {
                         inputMode="numeric"
                         pattern="[0-9]*"
                         onChange={handleChange}
-                        className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm outline-none focus:border-slate-900"
+                        className={`mt-2 w-full rounded-xl px-3 py-2.5 text-base sm:text-sm outline-none
+                            ${
+                              errors.fullName
+                                ? "border border-rose-500 focus:border-rose-600"
+                                : "border border-slate-300 focus:border-slate-900"
+                            }
+                          `}
                       />
                       {errors.phoneNumber && (
                         <p className="mt-1 text-xs text-rose-600">
@@ -775,7 +780,13 @@ const resetForm = () => {
                         type="email"
                         value={formData.email}
                         onChange={handleChange}
-                        className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm outline-none focus:border-slate-900"
+                        className={`mt-2 w-full rounded-xl px-3 py-2.5 text-base sm:text-sm outline-none
+                          ${
+                            errors.fullName
+                              ? "border border-rose-500 focus:border-rose-600"
+                              : "border border-slate-300 focus:border-slate-900"
+                          }
+                        `}
                       />
                       {errors.email && (
                         <p className="mt-1 text-xs text-rose-600">
@@ -805,7 +816,13 @@ const resetForm = () => {
                         value={formData.address}
                         onChange={handleChange}
                         rows={3}
-                        className="mt-2 w-full resize-none rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm outline-none focus:border-slate-900"
+                       className={`mt-2 w-full rounded-xl px-3 py-2.5 text-base sm:text-sm outline-none resize-none
+                        ${
+                          errors.fullName
+                            ? "border border-rose-500 focus:border-rose-600"
+                            : "border border-slate-300 focus:border-slate-900"
+                        }
+                      `}
                       />
                       {errors.address && (
                         <p className="mt-1 text-xs text-rose-600">
@@ -864,7 +881,7 @@ const resetForm = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                       <div>
                         <label className="text-sm font-medium text-slate-800">
-                          Project 
+                          Project
                           <span className="text-red-600">*</span>
                         </label>
                         <select
@@ -875,7 +892,7 @@ const resetForm = () => {
                           className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900"
                         >
                           <option value="" disabled>
-                             เลือกโปรเจกต์ 
+                            เลือกโปรเจกต์
                           </option>
                           {projectsState.data.map((p) => (
                             <option key={p.gid} value={p.gid}>
@@ -924,25 +941,26 @@ const resetForm = () => {
                       )}
                     </div>
                     <div className="text-sm font-medium text-slate-800">
-                          <label>ประเภทงาน</label>
+                      <label>ประเภทงาน</label>
 
-                          <select
-                            value={workType}
-                            onChange={(e) => setWorkType(e.target.value)}
-                            className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900"
-                          >
-                            <option value="" disabled>เลือกประเภทงาน</option>
-                            <option value="การ์ด">การ์ด</option>
-                            <option value="ฏีกา">ฏีกา</option>
-                            <option value="นามบัตร">นามบัตร</option>
-                            <option value="โปสเตอร์">โปสเตอร์</option>
-                            <option value="ใบปลิว">ใบปลิว</option>
-                            <option value="แผ่นพับ">แผ่นพับ</option>
-                            <option value="หนังสือ">หนังสือ</option>
-                            <option value="อื่นๆ">อื่นๆ</option>
-                          </select>
-                        </div>
-
+                      <select
+                        value={workType}
+                        onChange={(e) => setWorkType(e.target.value)}
+                        className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900"
+                      >
+                        <option value="" disabled>
+                          เลือกประเภทงาน
+                        </option>
+                        <option value="การ์ด">การ์ด</option>
+                        <option value="ฏีกา">ฏีกา</option>
+                        <option value="นามบัตร">นามบัตร</option>
+                        <option value="โปสเตอร์">โปสเตอร์</option>
+                        <option value="ใบปลิว">ใบปลิว</option>
+                        <option value="แผ่นพับ">แผ่นพับ</option>
+                        <option value="หนังสือ">หนังสือ</option>
+                        <option value="อื่นๆ">อื่นๆ</option>
+                      </select>
+                    </div>
                   </div>
                   <Subtask
                     projects={
@@ -954,21 +972,17 @@ const resetForm = () => {
                     onChange={setSubtasks}
                     disabled={creating || projectsState.status !== "success"}
                   />
-                   <hr className="my-6 border-slate-200" />
-                 
+                  <hr className="my-6 border-slate-200" />
+
                   {showPaperUsed && <Paper_used />}
-        
+
                   {showPasansee && <Pasansee />}
 
                   {showBinding && <Binding />}
 
                   <Details key={detailsKey} files={files} setFiles={setFiles} />
 
-
-
                   <TypeOfWork />
-
-                  
 
                   <Printer />
                 </div>
@@ -987,11 +1001,10 @@ const resetForm = () => {
                 {successOpen && (
                   <div
                     className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-                     onClick={() => {
-                          setSuccessOpen(false);
-                          
-                        }}
-                       >
+                    onClick={() => {
+                      setSuccessOpen(false);
+                    }}
+                  >
                     <div
                       className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
                       onClick={(e) => e.stopPropagation()}
@@ -1004,20 +1017,20 @@ const resetForm = () => {
                       </div>
 
                       <div className="mt-6 flex justify-end gap-2">
-                       <button
-                            type="button"
-                            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-                            onClick={() => {
-                              // ปิด Modal ก่อน
-                              setSuccessOpen(false);
-                              // เรียกใช้ resetForm ทันที
-                              resetForm();
-                              // เลื่อนหน้าจอกลับไปด้านบนสุดเพื่อให้พร้อมกรอกใหม่
-                              window.scrollTo({ top: 0, behavior: "smooth" });
-                            }}
-                          >
-                            ตกลง
-                          </button>
+                        <button
+                          type="button"
+                          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                          onClick={() => {
+                      
+                            setSuccessOpen(false);
+                           
+                            resetForm();
+                           
+                            window.scrollTo({ top: 0, behavior: "smooth" });
+                          }}
+                        >
+                          ตกลง
+                        </button>
                       </div>
                     </div>
                   </div>
