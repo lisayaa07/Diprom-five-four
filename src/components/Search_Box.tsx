@@ -5,7 +5,7 @@ function SearchBox(): JSX.Element {
   const nav = useNavigate();
   const [q, setQ] = useState("");
 
- const go = () => {
+  const go = () => {
     const s = q.trim();
     if (!s) return;
     nav(`/search-user?q=${encodeURIComponent(s)}`);
@@ -27,7 +27,7 @@ function SearchBox(): JSX.Element {
             if (e.key === "Enter") go();
           }}
           placeholder="พิมพ์ชื่อบริษัท..."
-          className="w-full flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-900"
+          className="w-full flex-1 rounded-lg bg-white border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-900"
         />
 
         <button
