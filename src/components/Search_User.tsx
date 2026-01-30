@@ -27,6 +27,11 @@ type GasSearchResp = {
   error?: string;
 };
 type FileLink = { name: string; url: string };
+function pickJobName(notes: string): string {
+  const re = /^ชื่องาน\s*:\s*(.*)$/m; // ค้นหาบรรทัดที่ขึ้นต้นด้วย ชื่องาน:
+  const m = notes.match(re);
+  return m?.[1]?.trim() ?? ""; // ถ้าเจอให้คืนค่าข้อความหลังเครื่องหมาย :
+}
 
 function parseFileLinks(raw: string): FileLink[] {
   const s = (raw || "").trim();
@@ -171,8 +176,8 @@ const dateOnly = (v: any) => {
                       className="w-full rounded-lg border border-slate-200 px-3 py-2 text-left hover:bg-slate-50"
                     >
                       <div className="font-medium">
-                        {o.ประเภทงาน || "(ไม่ระบุประเภทงาน)"} • จำนวน{" "}
-                        {o.จำนวนสั่ง || "-"}
+                        {pickJobName(o.รายละเอียดงานทั้งหมด || "") || o.ประเภทงาน || "(ไม่ระบุชื่องาน)"}
+                        
                       </div>
                       <div className="text-xs text-slate-600">
                         รับงาน: {dateOnly(o.วันรับงาน)} • ส่งงาน: {dateOnly(o.วันส่งงาน)}
