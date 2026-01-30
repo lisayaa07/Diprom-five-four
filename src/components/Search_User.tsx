@@ -178,9 +178,7 @@ const dateOnly = (v: any) => {
                         รับงาน: {dateOnly(o.วันรับงาน)} • ส่งงาน: {dateOnly(o.วันส่งงาน)}
                       </div>
                                             
-                      <div className="text-xs text-slate-600 whitespace-pre-wrap">
-                        {o.รายละเอียดงานทั้งหมด ? o.รายละเอียดงานทั้งหมด : "-"}
-                      </div>
+                     
                       {(() => {
                         const fileLinks = parseFileLinks(o.ไฟล์ ?? "");
                         if (fileLinks.length === 0) return null;

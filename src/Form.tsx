@@ -93,6 +93,7 @@ function Form(): JSX.Element {
   const [formError, setFormError] = useState<string>("");
   const [workType, setWorkType] = useState<string>("");
   const [detailsKey, setDetailsKey] = useState(0);
+  const [resetKey, setResetKey] = useState(0);
 
   const resetForm = () => {
     //ล้างข้อมูลใน formData ทั้งหมด
@@ -109,18 +110,23 @@ function Form(): JSX.Element {
       quantity: "",
       startDate: "",
       endDate: "",
+      
     });
+    
 
     setSelectedProjectGid("");
     setWorkType("");
 
     setSubtasks([]);
     setFiles([]);
+    setResetKey(prev => prev + 1);
 
     setErrors({});
     setFormError("");
 
     setDetailsKey((prev) => prev + 1);
+
+
   };
 
   // โหลด projects
@@ -575,15 +581,18 @@ function Form(): JSX.Element {
         if (!name) continue;
 
         try {
-          const subRes = await fetch(`/api/tasks/${taskGid}/subtasks`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Accept: "application/json",
-              "X-Tunnel-Skip-AntiPhishing-Page": "True",
-            },
-            body: JSON.stringify({ data: { name } }),
-          });
+       const body: any = { data: { name } };
+            if (s.projectGid) body.data.projects = [s.projectGid];
+
+            const subRes = await fetch(`/api/tasks/${taskGid}/subtasks`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+                "X-Tunnel-Skip-AntiPhishing-Page": "True",
+              },
+              body: JSON.stringify(body),
+            });
 
           const subText = await subRes.text();
           let subJson: any;
@@ -982,9 +991,15 @@ function Form(): JSX.Element {
 
                   <Details key={detailsKey} files={files} setFiles={setFiles} />
 
-                  <TypeOfWork />
+                 
+                  <div key={`work-${resetKey}`}>
+                    <TypeOfWork />
+                  </div>
 
-                  <Printer />
+               
+                  <div key={`printer-${resetKey}`}>
+                    <Printer />
+                  </div>
                 </div>
               </div>
               {/* ปุ่มส่ง */}
