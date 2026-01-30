@@ -7,7 +7,7 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        target: "https://1jmg3t41-8080.asse.devtunnels.ms", 
+        target: "https://gcmbmgwt-8080.asse.devtunnels.ms", 
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path.replace(/^\/api/, ""),
