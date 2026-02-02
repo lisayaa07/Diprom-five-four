@@ -1,4 +1,5 @@
 import React, { useEffect, useState, type FormEvent, type JSX } from "react";
+import { API_BASE_URL } from "./config";
 
 type Project = { gid: string; name: string; resource_type?: string };
 type State<T> =
@@ -48,7 +49,7 @@ export default function Add(): JSX.Element {
       try {
         setProjectsState({ status: "loading", data: null, error: null });
 
-        const res = await fetch(`/api/projects?workspace=${WORKSPACE_GID}`, {
+        const res = await fetch(`${API_BASE_URL}/projects?workspace=${WORKSPACE_GID}`, {
           headers: { Accept: "application/json" },
         });
 
@@ -119,7 +120,7 @@ export default function Add(): JSX.Element {
         },
       };
 
-      const res = await fetch(`/api/tasks`, {
+      const res = await fetch(`${API_BASE_URL}/tasks`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -149,7 +150,7 @@ export default function Add(): JSX.Element {
           const form = new FormData();
           form.append("file", file); 
 
-          const up = await fetch(`/api/tasks/${taskGid}/attachments`, {
+          const up = await fetch(`${API_BASE_URL}/tasks/${taskGid}/attachments`, {
             method: "POST",
             body: form,
           });
