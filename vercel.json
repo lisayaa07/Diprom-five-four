@@ -2,8 +2,8 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     {
-      "source": "/api/(.*)", "destination": "https://phgm4z2f-8080.asse.devtunnels.ms/$1",
-      "destination": "https://app.asana.com/api/1.0/:path*"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
