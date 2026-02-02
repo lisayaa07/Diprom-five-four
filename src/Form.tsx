@@ -8,6 +8,7 @@ import TypeOfWork from "./components/TypeOfWork";
 import Printer from "./components/Printer";
 import SearchBox from "./components/Search_Box";
 import { useSearchParams } from "react-router-dom";
+import { API_BASE_URL } from "./config";
 
 type Project = { gid: string; name: string; resource_type?: string };
 type State<T> =
@@ -135,7 +136,7 @@ function Form(): JSX.Element {
       try {
         setProjectsState({ status: "loading", data: null, error: null });
 
-        const res = await fetch(`/api/projects?workspace=${WORKSPACE_GID}`, {
+        const res = await fetch(`${API_BASE_URL}/projects?workspace=${WORKSPACE_GID}`, {
           headers: {
             Accept: "application/json",
             "X-Tunnel-Skip-AntiPhishing-Page": "True",
@@ -473,7 +474,7 @@ function Form(): JSX.Element {
         },
       };
 
-      const res = await fetch(`/api/tasks`, {
+      const res = await fetch(`${API_BASE_URL}/tasks`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -504,7 +505,7 @@ function Form(): JSX.Element {
           const form = new FormData();
           form.append("file", file);
 
-          const up = await fetch(`/api/tasks/${taskGid}/attachments`, {
+          const up = await fetch(`${API_BASE_URL}/tasks/${taskGid}/attachments`, {
             method: "POST",
             body: form,
           });
@@ -519,7 +520,7 @@ function Form(): JSX.Element {
           }
 
           const metaRes = await fetch(
-            `/api/attachments/${att.gid}?opt_fields=name,permanent_url`,
+            `${API_BASE_URL}/attachments/${att.gid}?opt_fields=name,permanent_url`,
           );
           if (!metaRes.ok) {
             fileLinks.push({ name: att.name ?? file.name, url: "" });
@@ -595,7 +596,7 @@ function Form(): JSX.Element {
        const body: any = { data: { name } };
             if (s.projectGid) body.data.projects = [s.projectGid];
 
-            const subRes = await fetch(`/api/tasks/${taskGid}/subtasks`, {
+            const subRes = await fetch(`${API_BASE_URL}/tasks/${taskGid}/subtasks`, {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
@@ -621,7 +622,7 @@ function Form(): JSX.Element {
           if (!subGid) throw new Error("สร้าง subtask สำเร็จแต่หา gid ไม่เจอ");
 
           if (s.projectGid) {
-            const addRes = await fetch(`/api/tasks/${subGid}/addProject`, {
+            const addRes = await fetch(`${API_BASE_URL}/tasks/${subGid}/addProject`, {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
