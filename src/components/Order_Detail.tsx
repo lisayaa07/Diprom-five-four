@@ -183,25 +183,26 @@ export default function Order_Detail(): JSX.Element {
             </div>
 
           <div><b>จำนวนสั่ง:</b> {view.order.quantity || "-"}</div>
-          <div className="text-sm">
+          <div className="text-sm flex gap-2 items-center">
           <b>ไฟล์:</b>{" "}
           {(() => {
             const links = parseFileLinks(view.order.files || "");
             if (links.length === 0) return "-";
             return (
-              <ul className="mt-1 space-y-1">
-                {links.map((f, i) => (
-                  <li key={`${f.name}-${i}`}>
-                    {f.url ? (
-                      <a href={f.url} target="_blank" rel="noreferrer" className="underline">
-                        {f.name}
-                      </a>
-                    ) : (
-                      <span>{f.name}</span>
-                    )}
-                  </li>
-                ))}
-              </ul>
+             <div className="flex flex-wrap gap-x-3 gap-y-1">
+              {links.map((f, i) => (
+                <span key={`${f.name}-${i}`}>
+                  {f.url ? (
+                    <a href={f.url} target="_blank" rel="noreferrer" className="underline text-blue-600 hover:text-blue-800">
+                      {f.name}
+                    </a>
+                  ) : (
+                    <span>{f.name}</span>
+                  )}
+                  {i < links.length - 1 && <span className="ml-1">,</span>}
+                </span>
+              ))}
+            </div>
             );
           })()}
         </div>
