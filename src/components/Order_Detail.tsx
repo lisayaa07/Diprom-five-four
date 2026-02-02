@@ -65,7 +65,7 @@ function pickLine(notes: string, label: string): string {
 
 function removeDuplicateLines(notes: string): string {
   const dropPrefixes = [
-    "ชื่อ:", "ประเภท:", "เบอร์โทร:", "อีเมล:", "Line:", "ที่อยู่:",
+    "ชื่อ:", "ประเภท:","ประเภทงาน:", "เบอร์โทร:", "อีเมล:", "Line:", "ที่อยู่:",
     "ชื่องาน:", "จำนวนสั่ง:", "วันเริ่ม:", "วันสิ้นสุด:",
     "วันสั่งงาน:", "วันรับงาน:", "วันส่งงาน:",
   ];
@@ -124,10 +124,13 @@ export default function Order_Detail(): JSX.Element {
     // ชื่องาน: ถ้ามีใน notes แบบ "ชื่องาน: xxx" จะดึงมาแสดง (ไม่ซ้ำ)
     const jobName = pickLine(order.notes || "", "ชื่องาน");
     const cleanNotes = removeDuplicateLines(order.notes || "");
+    const workTypeFromNotes =
+  pickLine(order.notes || "", "ประเภทงาน") || pickLine(order.notes || "", "ประเภท");
 
     return {
       jobName,
       cleanNotes,
+      workTypeFromNotes,
       order,
     };
   }, [data]);
@@ -175,7 +178,10 @@ export default function Order_Detail(): JSX.Element {
 
           <hr className="my-2" />
 
-          <div><b>ประเภทงาน:</b> {view.order.projectName || "-"}</div>
+            <div>
+              <b>ประเภทงาน:</b> {view.workTypeFromNotes || view.order.projectName || "-"}
+            </div>
+
           <div><b>จำนวนสั่ง:</b> {view.order.quantity || "-"}</div>
           <div className="text-sm">
           <b>ไฟล์:</b>{" "}

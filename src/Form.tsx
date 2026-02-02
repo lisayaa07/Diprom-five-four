@@ -336,7 +336,8 @@ function Form(): JSX.Element {
         lines.push(`ชื่อบริษัท/หน่วยงาน: ${formData.company.trim()}`);
       if (formData.fullName.trim())
         lines.push(`ชื่อ: ${formData.fullName.trim()}`);
-      if (selectedProject?.name) lines.push(`ประเภท: ${selectedProject.name}`);
+      if (workType) lines.push(`ประเภทงาน: ${workType}`);
+
       if (formData.phoneNumber.trim())
         lines.push(`เบอร์โทร: ${formData.phoneNumber.trim()}`);
       if (formData.email.trim()) lines.push(`อีเมล: ${formData.email.trim()}`);
