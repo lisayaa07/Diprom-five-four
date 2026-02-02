@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.18",
+    "@vercel/node": "^5.5.28",
     "axios": "^1.13.2",
     "classnames": "^2.5.1",
     "phosphor-react": "^1.4.1",
