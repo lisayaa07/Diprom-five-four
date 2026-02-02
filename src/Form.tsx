@@ -9,6 +9,8 @@ import Printer from "./components/Printer";
 import SearchBox from "./components/Search_Box";
 import { useSearchParams } from "react-router-dom";
 
+
+
 type Project = { gid: string; name: string; resource_type?: string };
 type State<T> =
   | { status: "loading"; data: null; error: null }
@@ -16,6 +18,8 @@ type State<T> =
   | { status: "error"; data: null; error: string };
 
 const WORKSPACE_GID = "1212854074325957";
+const baseUrl = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+
 interface GridTask {
   data?: {
     gid?: string;
@@ -135,12 +139,13 @@ function Form(): JSX.Element {
       try {
         setProjectsState({ status: "loading", data: null, error: null });
 
-        const res = await fetch(`/api/projects?workspace=${WORKSPACE_GID}`, {
-          headers: {
-            Accept: "application/json",
-            "X-Tunnel-Skip-AntiPhishing-Page": "True",
-          },
-        });
+     
+
+const res = await fetch(
+  `${baseUrl}/api/projects?workspace=${WORKSPACE_GID}`,
+  { headers: { Accept: "application/json", "X-Tunnel-Skip-AntiPhishing-Page": "True" } }
+);
+
 
         const text = await res.text();
         let json: any = null;
@@ -473,15 +478,16 @@ function Form(): JSX.Element {
         },
       };
 
-      const res = await fetch(`/api/tasks`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          "X-Tunnel-Skip-AntiPhishing-Page": "True",
-        },
-        body: JSON.stringify(payload),
-      });
+      const res = await fetch(`${baseUrl}/api/tasks`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "X-Tunnel-Skip-AntiPhishing-Page": "True",
+      },
+      body: JSON.stringify(payload),
+    });
+
 
       const text = await res.text();
       const json = JSON.parse(text);
@@ -504,10 +510,11 @@ function Form(): JSX.Element {
           const form = new FormData();
           form.append("file", file);
 
-          const up = await fetch(`/api/tasks/${taskGid}/attachments`, {
-            method: "POST",
-            body: form,
-          });
+        const up = await fetch(`${baseUrl}/api/tasks/${taskGid}/attachments`, {
+          method: "POST",
+          body: form,
+        });
+
 
           const upText = await up.text();
           const upJson = JSON.parse(upText);
@@ -519,8 +526,15 @@ function Form(): JSX.Element {
           }
 
           const metaRes = await fetch(
-            `/api/attachments/${att.gid}?opt_fields=name,permanent_url`,
-          );
+          `${baseUrl}/api/attachments/${att.gid}?opt_fields=name,permanent_url`,
+          {
+            headers: {
+              Accept: "application/json",
+              "X-Tunnel-Skip-AntiPhishing-Page": "True",
+            },
+          }
+        );
+
           if (!metaRes.ok) {
             fileLinks.push({ name: att.name ?? file.name, url: "" });
             continue;
@@ -595,7 +609,7 @@ function Form(): JSX.Element {
        const body: any = { data: { name } };
             if (s.projectGid) body.data.projects = [s.projectGid];
 
-            const subRes = await fetch(`/api/tasks/${taskGid}/subtasks`, {
+            const subRes = await fetch(`${baseUrl}/api/tasks/${taskGid}/subtasks`, {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
@@ -604,6 +618,7 @@ function Form(): JSX.Element {
               },
               body: JSON.stringify(body),
             });
+
 
           const subText = await subRes.text();
           let subJson: any;
@@ -621,15 +636,16 @@ function Form(): JSX.Element {
           if (!subGid) throw new Error("สร้าง subtask สำเร็จแต่หา gid ไม่เจอ");
 
           if (s.projectGid) {
-            const addRes = await fetch(`/api/tasks/${subGid}/addProject`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Accept: "application/json",
-                "X-Tunnel-Skip-AntiPhishing-Page": "True",
-              },
-              body: JSON.stringify({ data: { project: s.projectGid } }),
-            });
+           const addRes = await fetch(`${baseUrl}/api/tasks/${subGid}/addProject`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+              "X-Tunnel-Skip-AntiPhishing-Page": "True",
+            },
+            body: JSON.stringify({ data: { project: s.projectGid } }),
+          });
+
 
             if (!addRes.ok) {
               const addText = await addRes.text();
