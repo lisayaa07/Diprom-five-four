@@ -9,6 +9,8 @@ import Printer from "./components/Printer";
 import SearchBox from "./components/Search_Box";
 import { useSearchParams } from "react-router-dom";
 import { API_BASE_URL } from "./config";
+import { PDFDownloadLink } from '@react-pdf/renderer';
+import MyPdfDocument from './components/PDF';
 
 type Project = { gid: string; name: string; resource_type?: string };
 type State<T> =
@@ -1053,7 +1055,7 @@ function Form(): JSX.Element {
                     <div
                       className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
                       onClick={(e) => e.stopPropagation()}
-                    >
+                     >
                       <div className="text-lg font-semibold text-slate-900">
                         สำเร็จ
                       </div>
@@ -1073,9 +1075,36 @@ function Form(): JSX.Element {
                            
                             window.scrollTo({ top: 0, behavior: "smooth" });
                           }}
-                        >
+                          >
                           ตกลง
                         </button>
+                        <PDFDownloadLink
+                            document={
+                              <MyPdfDocument
+                                customername={formData.fullName}
+                                phone={formData.phoneNumber}
+                                email={formData.email}
+                                companyName={formData.company}
+                                orderDate={formData.startDate}
+                                dueDate={formData.endDate}
+                                jobName={formData.jobName}
+                                line={formData.lineId}
+                                quantity={formData.quantity}
+                              />
+                            }
+                            fileName="user-info.pdf"
+                          >
+                            {({ loading }) => (
+                              <button
+                                type="button"
+                                className="rounded-xl bg-slate-700 px-4 py-2 text-sm text-white"
+                              >
+                                {loading ? "กำลังสร้าง PDF..." : "ดาวน์โหลด PDF"}
+                              </button>
+                            )}
+                          </PDFDownloadLink>
+                         
+
                       </div>
                     </div>
                   </div>

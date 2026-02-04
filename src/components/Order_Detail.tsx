@@ -1,6 +1,7 @@
 import  { useEffect, useMemo, useState, type JSX } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-
+import { PDFDownloadLink,PDFViewer } from '@react-pdf/renderer';
+import MyPdfDocument from './PDF';
 type GasOrderDetailResp = {
   ok: boolean;
   found?: boolean;
@@ -44,6 +45,8 @@ function parseFileLinks(raw: string): FileLink[] {
   } catch {
     // ignore
   }
+
+
 
   // fallback: ถ้าเป็น "a.pdf, b.ai"
  return s
@@ -117,6 +120,40 @@ export default function Order_Detail(): JSX.Element {
     run();
   }, [orderId]);
 
+    function extractNoteValue(notes: string, label: string): string {
+  if (!notes) return "-";
+
+  const lines = notes.split(/\r?\n/);
+  const target = label.trim().toLowerCase();
+
+  for (const line of lines) {
+    const t = line.trim();
+    if (!t) continue;
+
+    // match รูปแบบ "label: value"
+    const idx = t.toLowerCase().indexOf(target);
+    if (idx !== 0) continue; // ต้องขึ้นต้นบรรทัดด้วย label
+
+    // แยกหลัง :
+    const parts = t.split(":");
+    if (parts.length < 2) return "-";
+    return parts.slice(1).join(":").trim() || "-";
+  }
+
+  // รองรับเคสอยู่ในบรรทัดเดียวแบบมี | เช่น "ขนาดสำเร็จ: ... | ขนาดตัดกระดาษ: ..."
+ for (const line of notes.split(/\r?\n/)) {
+    const t = line.trim();
+    if (!t) continue;
+    if (t.toLowerCase().startsWith(target + ":")) {
+      return t.split(":").slice(1).join(":").trim() || "-";
+    }
+  }
+
+  return "-";
+}
+
+
+
   const view = useMemo(() => {
     const order = data?.order;
     if (!order) return null;
@@ -124,14 +161,23 @@ export default function Order_Detail(): JSX.Element {
     // ชื่องาน: ถ้ามีใน notes แบบ "ชื่องาน: xxx" จะดึงมาแสดง (ไม่ซ้ำ)
     const jobName = pickLine(order.notes || "", "ชื่องาน");
     const cleanNotes = removeDuplicateLines(order.notes || "");
-    const workTypeFromNotes =
-  pickLine(order.notes || "", "ประเภทงาน") || pickLine(order.notes || "", "ประเภท");
+    const workTypeFromNotes = pickLine(order.notes || "", "ประเภทงาน") || pickLine(order.notes || "", "ประเภท");
+    const cover = extractNoteValue(order.notes || "", "หน้าปก");
+    const inside = extractNoteValue(order.notes || "", "เนื้อใน");
+    const billTypes = extractNoteValue(order.notes || "", "งานบิล");
+    const paperColor = extractNoteValue(order.notes || "", "ปะสันกระดาษ");
+
+
 
     return {
       jobName,
       cleanNotes,
       workTypeFromNotes,
+      cover,
       order,
+      inside,
+      billTypes,
+      paperColor
     };
   }, [data]);
 
@@ -215,6 +261,63 @@ export default function Order_Detail(): JSX.Element {
               <pre className="whitespace-pre-wrap text-slate-700">{view.cleanNotes}</pre>
             </>
           )}
+          {view && data?.user && (
+            <div className="mt-4">
+              <PDFDownloadLink
+                document={
+                  <MyPdfDocument
+                    customername={view.order.customerName}
+                    address={view.order.address}
+                    email={data.order?.email || "-"}
+                    companyName={data.user.companyName || "-"}
+                    orderDate={data.order?.startDate || "-"}
+                    dueDate={data.order?.endDate || "-"}
+                    jobName={view.jobName || "-"}
+                    phone={view.order.phone}
+                    line={view.order.line || "-"}
+                    quantity={ view.order.quantity || "-"}
+                    cover={view.cover || "-"}
+                    inside={view.inside || "-"}
+                    billTypes={view.billTypes || "-"}
+                    paperColor={view.paperColor || "-"}
+                  />
+
+                }
+                fileName={`order-${data.order?.ID_Order}.pdf`}
+              >
+                {({ loading }) => (
+                  <button
+                    type="button"
+                    className="rounded-xl bg-slate-700 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                  >
+                    {loading ? "กำลังสร้าง PDF..." : "ดาวน์โหลด PDF"}
+                  </button>
+                )}
+              </PDFDownloadLink>
+               <PDFViewer width="100%" height={600} style={{ border: '1px solid #ccc' }}>
+                          <MyPdfDocument
+
+                           customername={view.order.customerName}
+                           address={view.order.address}
+                            phone={view.order.phone}
+                            email={data.order?.email || "-"}
+                            companyName={data.user.companyName || "-"}
+                            orderDate={data.order?.startDate || "-"}
+                            dueDate={data.order?.endDate || "-"}
+                            jobName={view.jobName || "-"}
+                            line={view.order.line || "-"}
+                            workTypeFromNotes={view.workTypeFromNotes || "-"}
+                            quantity={ view.order.quantity || "-"}
+                            cover={view.cover || "-"}
+                            inside={view.inside || "-"}
+                            billTypes={view.billTypes || "-"}
+                            paperColor={view.paperColor || "-"}
+                          />
+                        </PDFViewer>
+            </div>
+          )}
+
+
         </div>
       )}
     </div>

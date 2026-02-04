@@ -1,6 +1,7 @@
 import { useEffect, useState, type JSX } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 
+
 type GasSearchResp = {
   ok: boolean;
   found?: boolean;
@@ -74,6 +75,7 @@ export default function Searh_User(): JSX.Element {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string>("");
   const [data, setData] = useState<GasSearchResp | null>(null);
+
 
   useEffect(() => {
     if (!q) return;
@@ -182,6 +184,10 @@ const dateOnly = (v: any) => {
                       <div className="text-xs text-slate-600">
                         รับงาน: {dateOnly(o.วันรับงาน)} • ส่งงาน: {dateOnly(o.วันส่งงาน)}
                       </div>
+
+                      <div className="mt-1 text-xs text-slate-600">
+                        
+                          </div>
                                             
                      
                       {(() => {
