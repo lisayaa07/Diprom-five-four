@@ -92,6 +92,21 @@ type Props = {
   inside?: string;
   billTypes?: string;
   paperColor?: string;
+  laxineColor?: string;
+  wire?: string;
+  Adsan?: string;
+  glue?: string;
+  folding?: string;
+  details?: string;
+  pos?: string;
+  color?: string;
+  book?: string;
+  rangeText?: string;
+  detail?: string;
+  count_Detail?: string | number;
+  detail_Type?: string;
+  typeOfWorkText?: string;
+  printer?: string;
 };
 
 const MyPdfDocument = ({
@@ -111,6 +126,24 @@ const MyPdfDocument = ({
   inside,
   billTypes,
   paperColor, 
+  laxineColor,
+  wire,
+  Adsan,
+  glue,
+  folding,
+  details,
+  pos,
+  color,
+  book,
+  rangeText,
+  detail,
+  count_Detail,
+  detail_Type,
+  typeOfWorkText,
+  printer,
+
+
+
 }: Props) => (
   <Document>
     <Page size="A4" style={styles.page}>
@@ -119,6 +152,7 @@ const MyPdfDocument = ({
 
         //ตารางซ้าย
         <View style={[styles.leftColumn, { flex: 1 }]}>
+          <Text style={styles.text}>ชื่อบริษัท: {companyName}</Text>
           <Text style={styles.text}>ชื่อลูกค้า: {customername || "-"}</Text>
           <Text style={styles.text}>ที่อยู่: {address || "-"}</Text>
           <Text style={styles.text}>เบอร์โทร: {phone || "-"}</Text>
@@ -162,7 +196,28 @@ const MyPdfDocument = ({
               marginVertical: 6,
             }}
           />
-          <Text style={styles.text}>ปะสันสี : {paperColor || "-"}</Text>
+          <Text style={styles.detailsTitle}>ปะสันสี</Text>
+          <Text style={styles.text}>กระดาษ : {paperColor || "-"}</Text>
+          <Text style={styles.text}>แล็กซีน : {laxineColor || "-"}</Text>
+          
+            <View
+            style={{
+              borderBottom: "1px solid #000",
+              width: "100%",
+              marginVertical: 6,
+            }}
+          />
+           <Text style={styles.detailsTitle}>การเข้าเล่ม, ตีปรุและรันนัมเบอร์</Text>
+           <Text style={styles.text}>เย็บลวด : {wire || "-"}</Text>
+           <Text style={styles.text}>อัดสัน : {Adsan || "-"}</Text>
+            {glue && <Text style={styles.text}>ไสกาว</Text>}
+            <Text style={styles.text}>พับ : {folding || "-"}</Text>
+            <Text style={styles.text}>อื่นๆ : {details || "-"}</Text>
+            <Text style={styles.text}>ปรุ : {pos || "-"}</Text>
+            <Text style={styles.text}>รันนัมเบอร์ สี : {color || "-"}</Text>
+            <Text style={styles.text}>เล่มที่ : {book || "-"}</Text>
+            <Text style={styles.text}>เลขที่ : {rangeText || "-"}</Text>
+            
         </View>
 
         //ตารางขวา 
@@ -190,8 +245,29 @@ const MyPdfDocument = ({
 
           <View>
             <Text style={styles.detailsTitle}>รายละเอียดงาน</Text>
-            <Text style={styles.text}>ขนาดสำเร็จ:</Text>
-            <Text style={styles.text}>ชื่อบริษัท: {companyName}</Text>
+            <Text style={styles.text}>ขนาดสำเร็จ: {detail || "-"}</Text>
+            <Text style={styles.text}>จำนวนพิมพ์: {count_Detail || "-"}</Text>
+            <Text style={styles.text}>รูปแบบ: {detail_Type || "-"}</Text>
+             <View
+            style={{
+              borderBottom: "1px solid #000",
+              width: "100%",
+              marginVertical: 6,
+            }}
+          />
+          <Text style={styles.detailsTitle}>ชนิดรูปแบบงาน</Text>
+          <Text style={styles.text}>{typeOfWorkText || "-"}</Text>
+          <View
+            style={{
+              borderBottom: "1px solid #000",
+              width: "100%",
+              marginVertical: 6,
+            }}
+          />
+
+          <Text style={styles.detailsTitle}>เครื่องพิมพ์พิมพ์</Text>
+          <Text style={styles.text}>{printer || "-"}</Text>
+            
           </View>
         </View>
       </View>

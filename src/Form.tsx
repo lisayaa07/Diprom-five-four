@@ -434,6 +434,7 @@ function Form(): JSX.Element {
       const detail = getStr("detail");
       const unit = getStr("unit");
       const size = getStr("size");
+      
 
       //รายละเอียดงาน
       const parts: string[] = [];
@@ -441,9 +442,13 @@ function Form(): JSX.Element {
       if (size) parts.push(`ขนาดตัดกระดาษ: ${size}`);
       if (parts.length) lines.push(parts.join(" | "));
 
+      const count_Detail = getStr("count_Detail");
+        if (count_Detail) lines.push(`จำนวนพิมพ์: ${count_Detail}`);
+
       const Detail_Type = getAllStr("Detail_Type");
       if (Detail_Type.length > 0)
         lines.push(`รูปแบบ: ${Detail_Type.join(", ")}`);
+
 
       // ชนิดรูปแบบงาน
       const typeWorks = getAllStr("type_of_work"); // ได้หลายค่า
@@ -504,7 +509,7 @@ function Form(): JSX.Element {
       const fileLinks: FileLink[] = [];
 
       if (files.length > 0) {
-        for (const file of files) {
+       for (const file of files) {
           const form = new FormData();
           form.append("file", file);
 

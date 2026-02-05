@@ -120,37 +120,91 @@ export default function Order_Detail(): JSX.Element {
     run();
   }, [orderId]);
 
-    function extractNoteValue(notes: string, label: string): string {
+   function extractNoteValue(notes: string, label: string): string {
   if (!notes) return "-";
 
-  const lines = notes.split(/\r?\n/);
   const target = label.trim().toLowerCase();
+  const lines = notes.split(/\r?\n/);
 
-  for (const line of lines) {
-    const t = line.trim();
-    if (!t) continue;
+  // helper: เอาค่าหลัง prefix ออกมา (trim)
+  const afterPrefix = (line: string, prefix: string) =>
+    line.slice(prefix.length).trim();
 
-    // match รูปแบบ "label: value"
-    const idx = t.toLowerCase().indexOf(target);
-    if (idx !== 0) continue; // ต้องขึ้นต้นบรรทัดด้วย label
+  // 1) หาแบบอยู่ต้นบรรทัดก่อน
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) continue;
 
-    // แยกหลัง :
-    const parts = t.split(":");
-    if (parts.length < 2) return "-";
-    return parts.slice(1).join(":").trim() || "-";
+    const low = line.toLowerCase();
+
+    // ต้องขึ้นต้นด้วย label
+    if (!low.startsWith(target)) continue;
+
+    // (A) แบบ "label: value"
+    const colonIdx = line.indexOf(":");
+    if (colonIdx >= 0) {
+      const left = line.slice(0, colonIdx).trim().toLowerCase();
+      if (left === target) {
+        return line.slice(colonIdx + 1).trim() || "-";
+      }
+    }
+
+    // (B) แบบ "label/ value" หรือ "label ... /value" (เช่น "รันนัมเบอร์ สี/แดง")
+    const slashIdx = line.indexOf("/");
+    if (slashIdx >= 0) {
+      const left = line.slice(0, slashIdx).trim().toLowerCase();
+      if (left === target) {
+        return line.slice(slashIdx + 1).trim() || "-";
+      }
+    }
+
+    // (C) แบบ "label value" ไม่มี ":" (เช่น "เล่มที่ 3", "เลขที่ 1-100")
+    if (low === target) return "-"; // มี label เฉยๆ
+    return afterPrefix(line, label) || "-";
   }
 
-  // รองรับเคสอยู่ในบรรทัดเดียวแบบมี | เช่น "ขนาดสำเร็จ: ... | ขนาดตัดกระดาษ: ..."
- for (const line of notes.split(/\r?\n/)) {
-    const t = line.trim();
-    if (!t) continue;
-    if (t.toLowerCase().startsWith(target + ":")) {
-      return t.split(":").slice(1).join(":").trim() || "-";
+  // 2) รองรับบรรทัดแบบมี | เช่น "ขนาดสำเร็จ: ... | ขนาดตัดกระดาษ: ..."
+  for (const raw of lines) {
+    for (const seg of raw.split("|")) {
+      const line = seg.trim();
+      if (!line) continue;
+
+      const low = line.toLowerCase();
+      if (!low.startsWith(target)) continue;
+
+      const colonIdx = line.indexOf(":");
+      if (colonIdx >= 0) {
+        const left = line.slice(0, colonIdx).trim().toLowerCase();
+        if (left === target) {
+          return line.slice(colonIdx + 1).trim() || "-";
+        }
+      }
+
+      const slashIdx = line.indexOf("/");
+      if (slashIdx >= 0) {
+        const left = line.slice(0, slashIdx).trim().toLowerCase();
+        if (left === target) {
+          return line.slice(slashIdx + 1).trim() || "-";
+        }
+      }
+
+      if (low === target) return "-";
+      return afterPrefix(line, label) || "-";
     }
   }
 
   return "-";
 }
+function hasNoteFlag(notes: string, label: string): boolean {
+  if (!notes) return false;
+  const target = label.trim().toLowerCase();
+
+  return notes
+    .split(/\r?\n/)
+    .map(l => l.trim().toLowerCase())
+    .some(l => l === target);
+}
+
 
 
 
@@ -158,7 +212,7 @@ export default function Order_Detail(): JSX.Element {
     const order = data?.order;
     if (!order) return null;
 
-    // ชื่องาน: ถ้ามีใน notes แบบ "ชื่องาน: xxx" จะดึงมาแสดง (ไม่ซ้ำ)
+    
     const jobName = pickLine(order.notes || "", "ชื่องาน");
     const cleanNotes = removeDuplicateLines(order.notes || "");
     const workTypeFromNotes = pickLine(order.notes || "", "ประเภทงาน") || pickLine(order.notes || "", "ประเภท");
@@ -166,6 +220,24 @@ export default function Order_Detail(): JSX.Element {
     const inside = extractNoteValue(order.notes || "", "เนื้อใน");
     const billTypes = extractNoteValue(order.notes || "", "งานบิล");
     const paperColor = extractNoteValue(order.notes || "", "ปะสันกระดาษ");
+    const laxineColor = extractNoteValue(order.notes || "", "ปะสันแล็กซีน");
+    const wire = extractNoteValue(order.notes || "", "เย็บลวด");
+    const Adsan = extractNoteValue(order.notes || "", "อัดสัน");
+    const glue = hasNoteFlag(order.notes || "", "ไสกาว");
+    const folding = extractNoteValue(order.notes || "", "พับ");
+    const details = extractNoteValue(order.notes || "", "อื่นๆ");
+    const pos = extractNoteValue(order.notes || "", "ปรุ");
+    const runColor = extractNoteValue(order.notes || "", "รันนัมเบอร์ สี");
+    const book = extractNoteValue(order.notes || "", "เล่มที่");
+    const rangeText = extractNoteValue(order.notes || "", "เลขที่");
+    const detail = extractNoteValue(order.notes || "", "ขนาดสำเร็จ:");
+    const count_Detail = extractNoteValue(order.notes || "", "จำนวนพิมพ์:");
+    const detail_Type = extractNoteValue(order.notes || "", "รูปแบบ:");
+    const typeOfWorkText = extractNoteValue(order.notes || "", "ชนิดรูปแบบงาน");
+    const printer = extractNoteValue(order.notes || "", "เครื่องพิมพ์");
+
+
+    
 
 
 
@@ -177,7 +249,23 @@ export default function Order_Detail(): JSX.Element {
       order,
       inside,
       billTypes,
-      paperColor
+      paperColor,
+      laxineColor,
+      wire,
+      Adsan,
+       glue,
+      folding,
+      details,
+      pos,
+      runColor,
+      book,
+      rangeText,
+      detail,
+      count_Detail,
+      detail_Type,
+      typeOfWorkText,
+      printer,
+
     };
   }, [data]);
 
@@ -280,6 +368,23 @@ export default function Order_Detail(): JSX.Element {
                     inside={view.inside || "-"}
                     billTypes={view.billTypes || "-"}
                     paperColor={view.paperColor || "-"}
+                    laxineColor={view.laxineColor || "-"}
+                    wire={view.wire || "-"}
+                    Adsan={view.Adsan || "-"}
+                    glue={view?.glue ? "ใช่" : "ไม่ใช่"}
+
+                    folding={view.folding || "-"}
+                    details={view.details || "-"}
+                    pos={view.pos || "-"}
+                    color={view.runColor || "-"}
+                    book={view.book || "-"}
+                    rangeText={view.rangeText || "-"}
+                    detail={view.detail || "-"}
+                    count_Detail={view.count_Detail || "-"}
+                    detail_Type={view.detail_Type || "-"}
+                    typeOfWorkText={view.typeOfWorkText || "-"}
+                    printer={view.printer || "-"}
+                   
                   />
 
                 }
@@ -312,6 +417,22 @@ export default function Order_Detail(): JSX.Element {
                             inside={view.inside || "-"}
                             billTypes={view.billTypes || "-"}
                             paperColor={view.paperColor || "-"}
+                            laxineColor={view.laxineColor || "-"}
+                            wire={view.wire || "-"}  
+                            Adsan={view.Adsan || "-"}
+                            glue={view?.glue ? "ใช่" : "ไม่ใช่"}
+                            folding={view.folding || "-"}
+                            details={view.details || "-"}
+                            pos={view.pos || "-"}
+                            color={view.runColor || "-"}
+                            book={view.book || "-"}
+                            rangeText={view.rangeText || "-"}
+                            detail={view.detail || "-"}
+                            count_Detail={view.count_Detail || "-"}
+                            detail_Type={view.detail_Type || "-"}
+                            typeOfWorkText={view.typeOfWorkText || "-"}
+                            printer={view.printer || "-"}
+                          
                           />
                         </PDFViewer>
             </div>
