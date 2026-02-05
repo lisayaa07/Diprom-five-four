@@ -1,4 +1,5 @@
-import React, { useEffect, useState, type FormEvent, type JSX } from "react";
+import React, { useEffect, useState, useCallback, useRef, type FormEvent, type JSX } from "react";
+import * as htmlToImage from 'html-to-image';
 import Paper_used from "./components/Paper_used";
 import Pasansee from "./components/Pasansee";
 import Binding from "./components/Binding";
@@ -672,9 +673,38 @@ function Form(): JSX.Element {
   const showBinding =
     workType === "ฏีกา" || workType === "หนังสือ" || workType === "อื่นๆ";
 
+
+  const testRef = useRef<HTMLDivElement>(null);
+  const onButtonClick = useCallback(() => {
+    if (testRef.current === null) {
+      return;
+    }
+
+    htmlToImage.toCanvas(testRef.current)
+      .then((canvas) => {
+        // Use the resulting canvas
+        // 
+        canvas.toBlob((blob) => {
+      if (!blob) return;
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "capture.png";
+      a.click();
+      URL.revokeObjectURL(url);
+    }, "image/png");
+      })
+      .catch((err) => {
+        console.log(err);
+      });
+  }, []);
+
   return (
     <>
-      <div className="min-h-screen text-slate-900">
+      <button onClick={onButtonClick}>Capture</button>
+      <div ref={testRef} className="min-h-screen text-slate-900">
+
         <header className="mx-auto max-w-3xl px-4 py-10 text-center text-4xl">
           <h2>ใบสั่งพิมพ์งาน</h2>
         </header>
@@ -1038,6 +1068,8 @@ function Form(): JSX.Element {
                   <div key={`printer-${resetKey}`}>
                     <Printer />
                   </div>
+                  
+                  
                 </div>
               </div>
               {/* ปุ่มส่ง */}

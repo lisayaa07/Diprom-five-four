@@ -1,4 +1,5 @@
-import { type Dispatch, type SetStateAction } from "react";
+import { useRef, type Dispatch, type SetStateAction } from "react";
+import Culc, { type CulcHandle } from "./Calc";
 
 type DetailsProps = {
   files: File[];
@@ -6,9 +7,22 @@ type DetailsProps = {
 };
 
 function Details({ files, setFiles }: DetailsProps) {
+  const culcRef = useRef<CulcHandle>(null);
   return (
     <>
       <p>รายละเอียดงาน</p>
+      <div className="space-y-4">
+      <button
+      type="button"
+        onClick={() => culcRef.current?.open()}
+        className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+      >
+        คำนวณกระดาษ
+      </button>
+
+      {/* Culc อยู่ที่ไหนก็ได้ในหน้า */}
+      <Culc ref={culcRef} />
+    </div>
       <div className=" p-2 grid grid-cols-2 md:grid-cols-2 gap-4 items-center text-base sm:text-sm text-slate-800">
         <div>
           <label>ขนาดสำเร็จ</label>

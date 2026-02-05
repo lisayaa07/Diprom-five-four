@@ -2,7 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 // import Sidebar from "./components/Sidebar";
 import Form from "./Form";
 import Add from "./Add";
-import Calc from "./Calc";
+import Calc from "./components/Calc";
 import Search_User from "./components/Search_User";
 import Order_Detail from "./components/Order_Detail";
 export default function App() {
