@@ -18,7 +18,8 @@ type State<T> =
   | { status: "success"; data: T; error: null }
   | { status: "error"; data: null; error: string };
 
-const WORKSPACE_GID = "54744681150347";
+const WORKSPACE_GID = import.meta.env.VITE_WORKSPACE_GID as string;
+
 interface GridTask {
   data?: {
     gid?: string;
