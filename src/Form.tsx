@@ -9,6 +9,8 @@ import Printer from "./components/Printer";
 import SearchBox from "./components/Search_Box";
 import { useSearchParams } from "react-router-dom";
 import { API_BASE_URL } from "./config";
+import { PDFDownloadLink } from '@react-pdf/renderer';
+import MyPdfDocument from './components/PDF';
 
 type Project = { gid: string; name: string; resource_type?: string };
 type State<T> =
@@ -432,6 +434,7 @@ function Form(): JSX.Element {
       const detail = getStr("detail");
       const unit = getStr("unit");
       const size = getStr("size");
+      
 
       //รายละเอียดงาน
       const parts: string[] = [];
@@ -439,9 +442,13 @@ function Form(): JSX.Element {
       if (size) parts.push(`ขนาดตัดกระดาษ: ${size}`);
       if (parts.length) lines.push(parts.join(" | "));
 
+      const count_Detail = getStr("count_Detail");
+        if (count_Detail) lines.push(`จำนวนพิมพ์: ${count_Detail}`);
+
       const Detail_Type = getAllStr("Detail_Type");
       if (Detail_Type.length > 0)
         lines.push(`รูปแบบ: ${Detail_Type.join(", ")}`);
+
 
       // ชนิดรูปแบบงาน
       const typeWorks = getAllStr("type_of_work"); // ได้หลายค่า
@@ -502,7 +509,7 @@ function Form(): JSX.Element {
       const fileLinks: FileLink[] = [];
 
       if (files.length > 0) {
-        for (const file of files) {
+       for (const file of files) {
           const form = new FormData();
           form.append("file", file);
 
@@ -1053,7 +1060,7 @@ function Form(): JSX.Element {
                     <div
                       className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
                       onClick={(e) => e.stopPropagation()}
-                    >
+                     >
                       <div className="text-lg font-semibold text-slate-900">
                         สำเร็จ
                       </div>
@@ -1073,9 +1080,36 @@ function Form(): JSX.Element {
                            
                             window.scrollTo({ top: 0, behavior: "smooth" });
                           }}
-                        >
+                          >
                           ตกลง
                         </button>
+                        <PDFDownloadLink
+                            document={
+                              <MyPdfDocument
+                                customername={formData.fullName}
+                                phone={formData.phoneNumber}
+                                email={formData.email}
+                                companyName={formData.company}
+                                orderDate={formData.startDate}
+                                dueDate={formData.endDate}
+                                jobName={formData.jobName}
+                                line={formData.lineId}
+                                quantity={formData.quantity}
+                              />
+                            }
+                            fileName="user-info.pdf"
+                          >
+                            {({ loading }) => (
+                              <button
+                                type="button"
+                                className="rounded-xl bg-slate-700 px-4 py-2 text-sm text-white"
+                              >
+                                {loading ? "กำลังสร้าง PDF..." : "ดาวน์โหลด PDF"}
+                              </button>
+                            )}
+                          </PDFDownloadLink>
+                         
+
                       </div>
                     </div>
                   </div>
