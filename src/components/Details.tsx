@@ -106,9 +106,26 @@ function Details({ files, setFiles }: DetailsProps) {
 
       </div>
 
+
       {/* แนบไฟล์ */}
       <div className="p-2 flex flex-wrap items-center gap-2 text-base sm:text-sm text-slate-800">
         <div className="flex flex-wrap items-center gap-2">
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
+            ถ่ายรูป
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"   // กล้องหลังบนมือถือ
+              multiple               // ถ่ายหลายรูปได้
+              className="hidden"
+              onChange={(e) => {
+                const picked = Array.from(e.target.files || []);
+                if (picked.length === 0) return;
+                setFiles((prev) => [...prev, ...picked]); // ✅ ต่อท้าย
+                e.currentTarget.value = ""; // ✅ เลือก/ถ่ายซ้ำไฟล์เดิมได้
+              }}
+            />
+          </label>
           <label className="text-sm font-medium text-slate-800 m-2 whitespace-nowrap">
             แนบไฟล์
           </label>
@@ -116,7 +133,7 @@ function Details({ files, setFiles }: DetailsProps) {
           <input
             type="file"
             multiple
-            onChange={(e) => setFiles(Array.from(e.target.files || []))}
+            onChange={(e) => setFiles(prev => [...prev, ...Array.from(e.target.files || [])]) }
             className="mt-2 block text-sm file:mr-4 file:rounded-xl file:border-0 file:bg-slate-900 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-slate-800"
           />
         </div>
