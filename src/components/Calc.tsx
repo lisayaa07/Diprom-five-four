@@ -3,10 +3,9 @@ import React, {
   useImperativeHandle,
   useMemo,
   useState,
-  useCallback, 
   useRef,
 } from "react";
-import * as htmlToImage from 'html-to-image';
+import * as htmlToImage from "html-to-image";
 
 export type CalcHandle = {
   open: () => void;
@@ -22,6 +21,9 @@ type StickerRect = {
   width: number;
   height: number;
   orientation: Orientation;
+};
+type CalcProps = {
+  onCaptured: (file: File) => void;
 };
 
 function convertToMm(value: number, unit: Unit): number {
@@ -74,7 +76,9 @@ function calculateMixedLayout(
         rowHeight = Math.max(rowHeight, stickerHeight);
       } else if (
         (preferredOrientation === "vertical" && verticalFits) ||
-        (preferredOrientation === "horizontal" && !horizontalFits && verticalFits)
+        (preferredOrientation === "horizontal" &&
+          !horizontalFits &&
+          verticalFits)
       ) {
         layout.push({
           x: currentX,
@@ -96,7 +100,10 @@ function calculateMixedLayout(
   return layout;
 }
 
-const Calc = forwardRef<CalcHandle>(function Calc(_, ref) {
+const Calc = forwardRef<CalcHandle, CalcProps>(function Calc(
+  { onCaptured },
+  ref,
+) {
   const [isOpen, setIsOpen] = useState(false);
 
   useImperativeHandle(ref, () => ({
@@ -131,55 +138,65 @@ const Calc = forwardRef<CalcHandle>(function Calc(_, ref) {
     return { total, horizontalCount, verticalCount };
   }, [layout]);
 
-      function onCalculate() {
-  const sheetW = convertToMm(parseFloat(sheetWidthInput), sheetUnit);
-  const sheetH = convertToMm(parseFloat(sheetHeightInput), sheetUnit);
-  const stickerW = convertToMm(parseFloat(stickerWidthInput), stickerUnit);
-  const stickerH = convertToMm(parseFloat(stickerHeightInput), stickerUnit);
+  function onCalculate() {
+    const sheetW = convertToMm(parseFloat(sheetWidthInput), sheetUnit);
+    const sheetH = convertToMm(parseFloat(sheetHeightInput), sheetUnit);
+    const stickerW = convertToMm(parseFloat(stickerWidthInput), stickerUnit);
+    const stickerH = convertToMm(parseFloat(stickerHeightInput), stickerUnit);
 
-  if (sheetW <= 0 || sheetH <= 0 || stickerW <= 0 || stickerH <= 0) {
-    setLayout([]);
-    setSheetMm({ w: 0, h: 0 });
-    return;
-  }
-
-  const horizontalFirst = calculateMixedLayout(sheetW, sheetH, stickerW, stickerH, "horizontal");
-  const verticalFirst = calculateMixedLayout(sheetW, sheetH, stickerW, stickerH, "vertical");
-  const best = horizontalFirst.length >= verticalFirst.length ? horizontalFirst : verticalFirst;
-
-  setLayout(best);
-  setSheetMm({ w: sheetW, h: sheetH });
-}
-const testRef = useRef<HTMLDivElement>(null);
-  const onButtonClick = useCallback(() => {
-    if (testRef.current === null) {
+    if (sheetW <= 0 || sheetH <= 0 || stickerW <= 0 || stickerH <= 0) {
+      setLayout([]);
+      setSheetMm({ w: 0, h: 0 });
       return;
     }
 
-    htmlToImage.toCanvas(testRef.current)
-      .then((canvas) => {
-        // Use the resulting canvas
-        // 
-        canvas.toBlob((blob) => {
-      if (!blob) return;
+    const horizontalFirst = calculateMixedLayout(
+      sheetW,
+      sheetH,
+      stickerW,
+      stickerH,
+      "horizontal",
+    );
+    const verticalFirst = calculateMixedLayout(
+      sheetW,
+      sheetH,
+      stickerW,
+      stickerH,
+      "vertical",
+    );
+    const best =
+      horizontalFirst.length >= verticalFirst.length
+        ? horizontalFirst
+        : verticalFirst;
 
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "capture.png";
-      a.click();
-      URL.revokeObjectURL(url);
-    }, "image/png");
-      })
-      .catch((err) => {
-        console.log(err);
-      });
-  }, []);
+    setLayout(best);
+    setSheetMm({ w: sheetW, h: sheetH });
+  }
+
+
+  const captureRef = useRef<HTMLDivElement | null>(null);
+
+  const onCapture = async () => {
+    if (!captureRef.current) return;
+
+    const blob = await htmlToImage.toBlob(captureRef.current);
+    if (!blob) return;
+
+    const file = new File([blob], "paper-layout.png", {
+      type: "image/png",
+    });
+
+    onCaptured(file); 
+  };
 
   // ปิด = ไม่ render อะไร (แต่ยังถูกเรียก open() ได้)
   if (!isOpen) return null;
 
-  
+  const pad = 4;
+  const vb =
+    sheetMm.w > 0 && sheetMm.h > 0
+      ? `${-pad} ${-pad} ${sheetMm.w + pad * 2} ${sheetMm.h + pad * 2}`
+      : "0 0 1 1";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -279,9 +296,7 @@ const testRef = useRef<HTMLDivElement>(null);
                       </label>
                       <select
                         value={stickerUnit}
-                        onChange={(e) =>
-                          setStickerUnit(e.target.value as Unit)
-                        }
+                        onChange={(e) => setStickerUnit(e.target.value as Unit)}
                         className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2"
                       >
                         <option value="mm">mm</option>
@@ -324,15 +339,13 @@ const testRef = useRef<HTMLDivElement>(null);
                       </div>
                     </div>
 
-                   <button
-                        type="button"
-                        onClick={onCalculate}
-                        className="w-full rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-                        >
-                        Calculate
-                        </button>
-
-
+                    <button
+                      type="button"
+                      onClick={onCalculate}
+                      className="w-full rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                    >
+                      Calculate
+                    </button>
 
                     {(sheetMm.w <= 0 ||
                       sheetMm.h <= 0 ||
@@ -367,54 +380,50 @@ const testRef = useRef<HTMLDivElement>(null);
                         {stats.verticalCount}
                       </span>
                     </div>
+                    
                     <div>
-                        <button onClick={onButtonClick} 
-                            className="text-red-500"
-                            type="button">
-                            บันทึกรูปภาพ
-                        </button>
+                      <button type="button" onClick={onCapture}
+                      className="w-full rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+                       แนบไปที่ Asana
+                      </button>
                     </div>
                   </div>
+                  <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                    <div ref={captureRef} className="p-3 bg-white">
+                      <svg
+                        width="100%"
+                        height="400"
+                        viewBox={vb}
+                        preserveAspectRatio="xMidYMid meet"
+                      >
+                        {sheetMm.w > 0 && sheetMm.h > 0 && (
+                          <rect
+                            x={0}
+                            y={0}
+                            width={sheetMm.w}
+                            height={sheetMm.h}
+                            fill="transparent"
+                          />
+                        )}
 
-                  <div  ref={testRef} className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
-                    <svg
-                     
-                      width="100%"
-                      height="400"
-                      viewBox={
-                        sheetMm.w > 0 && sheetMm.h > 0
-                          ? `0 0 ${sheetMm.w} ${sheetMm.h}`
-                          : "0 0 1 1"
-                      }
-                      preserveAspectRatio="xMidYMid meet"
-                    >
-                      {sheetMm.w > 0 && sheetMm.h > 0 && (
-                        <rect
-                          x={0}
-                          y={0}
-                          width={sheetMm.w}
-                          height={sheetMm.h}
-                          fill="transparent"
-                        />
-                      )}
-
-                      {layout.map((s, i) => (
-                        <rect
-                          key={i}
-                          x={s.x}
-                          y={s.y}
-                          width={s.width}
-                          height={s.height}
-                          fill="none"
-                          stroke={
-                            s.orientation === "horizontal"
-                              ? "#007bff"
-                              : "#28a745"
-                          }
-                          strokeWidth={2}
-                        />
-                      ))}
-                    </svg>
+                        {layout.map((s, i) => (
+                          <rect
+                            key={i}
+                            x={s.x}
+                            y={s.y}
+                            width={s.width}
+                            height={s.height}
+                            fill="none"
+                            stroke={
+                              s.orientation === "horizontal"
+                                ? "#007bff"
+                                : "#28a745"
+                            }
+                            strokeWidth={2}
+                          />
+                        ))}
+                      </svg>
+                    </div>
                   </div>
                 </div>
               </div>

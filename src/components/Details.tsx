@@ -1,6 +1,7 @@
 import { useRef, type Dispatch, type SetStateAction } from "react";
 import Calc, { type CalcHandle } from "./Calc";
 
+
 type DetailsProps = {
   files: File[];
   setFiles: Dispatch<SetStateAction<File[]>>;
@@ -23,7 +24,13 @@ export default function Details({ files, setFiles }: DetailsProps) {
         </button>
 
         {/* ต้อง render ไว้ในหน้าเพื่อให้ ref ใช้งานได้ */}
-        <Calc ref={calcRef} />
+       <Calc
+        ref={calcRef}
+        onCaptured={(file) => {
+          console.log("CAPTURE FILE:", file); 
+          setFiles((prev) => [...prev, file]);
+        }}
+      />
       </div>
 
       <div className=" p-2 grid grid-cols-2 md:grid-cols-2 gap-4 items-center text-base sm:text-sm text-slate-800">
