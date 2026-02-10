@@ -1,4 +1,5 @@
 import React, { useEffect, useState, type FormEvent, type JSX } from "react";
+
 import Paper_used from "./components/Paper_used";
 import Pasansee from "./components/Pasansee";
 import Binding from "./components/Binding";
@@ -9,8 +10,8 @@ import Printer from "./components/Printer";
 import SearchBox from "./components/Search_Box";
 import { useSearchParams } from "react-router-dom";
 import { API_BASE_URL } from "./config";
-import { PDFDownloadLink } from '@react-pdf/renderer';
-import MyPdfDocument from './components/PDF';
+import { PDFDownloadLink } from "@react-pdf/renderer";
+import MyPdfDocument from "./components/PDF";
 
 type Project = { gid: string; name: string; resource_type?: string };
 type State<T> =
@@ -23,7 +24,6 @@ const WORKSPACE_GID = import.meta.env.VITE_WORKSPACE_GID as string;
 interface GridTask {
   data?: {
     gid?: string;
-
     data?: { gid?: string };
   };
   gid?: string;
@@ -57,10 +57,51 @@ const parseUploadAttachment = (j: unknown): AsanaAttachment | null => {
   return {
     gid,
     name,
-    permanent_url:
-      typeof permanent_url === "string" ? permanent_url : undefined,
+    permanent_url: typeof permanent_url === "string" ? permanent_url : undefined,
   };
 };
+
+type AsanaTaskMini = {
+  gid: string;
+  name?: string;
+  permalink_url?: string;
+};
+
+const normalizeAsanaTask = (j: unknown): AsanaTaskMini | null => {
+  if (!j || typeof j !== "object") return null;
+  const root = j as any;
+  const data = root.data && typeof root.data === "object" ? root.data : root;
+  const gid = data?.gid;
+  if (typeof gid !== "string") return null;
+  const name = typeof data?.name === "string" ? data.name : undefined;
+  const permalink_url =
+    typeof data?.permalink_url === "string" ? data.permalink_url : undefined;
+  return { gid, name, permalink_url };
+};
+
+async function safeReadJson(res: Response): Promise<any> {
+  const text = await res.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { raw: text };
+  }
+}
+
+async function fetchJsonOrThrow(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<any> {
+  const res = await fetch(input, init);
+  const json = await safeReadJson(res);
+  if (!res.ok) {
+    throw new Error(
+      `HTTP ${res.status}\n${typeof json === "string" ? json : JSON.stringify(json, null, 2)}`,
+    );
+  }
+  return json;
+}
 
 function Form(): JSX.Element {
   const [projectsState, setProjectsState] = useState<State<Project[]>>({
@@ -80,7 +121,6 @@ function Form(): JSX.Element {
     lineId: "",
     address: "",
     extra: "",
-
     jobName: "", // ชื่องาน -> ไปเป็น task name
     quantity: "", // จำนวนสั่ง (เก็บไว้ใส่ notes)
     startDate: "", // วันเริ่ม (date: YYYY-MM-DD)
@@ -90,7 +130,11 @@ function Form(): JSX.Element {
   const [files, setFiles] = useState<File[]>([]);
   const [, setResult] = useState<string>("");
   const [creating, setCreating] = useState<boolean>(false);
+
+  // NOTE: ยังใช้ component เดิม แต่จะ "ไม่สร้าง subtask" แล้ว
+  // จะสร้าง "Task ใหม่ในโปรเจกอื่น" แทน
   const [subtasks, setSubtasks] = useState<SubtaskDraft[]>([]);
+
   const [successOpen, setSuccessOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState("ส่งใบสั่งพิมพ์สำเร็จ");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -100,7 +144,6 @@ function Form(): JSX.Element {
   const [resetKey, setResetKey] = useState(0);
 
   const resetForm = () => {
-    //ล้างข้อมูลใน formData ทั้งหมด
     setFormData({
       tax_id: "",
       company: "",
@@ -114,23 +157,17 @@ function Form(): JSX.Element {
       quantity: "",
       startDate: "",
       endDate: "",
-      
     });
-    
 
     setSelectedProjectGid("");
     setWorkType("");
-
     setSubtasks([]);
     setFiles([]);
-    setResetKey(prev => prev + 1);
+    setResetKey((prev) => prev + 1);
 
     setErrors({});
     setFormError("");
-
     setDetailsKey((prev) => prev + 1);
-
-
   };
 
   // โหลด projects
@@ -139,39 +176,27 @@ function Form(): JSX.Element {
       try {
         setProjectsState({ status: "loading", data: null, error: null });
 
-        const res = await fetch(`${API_BASE_URL}/projects?workspace=${WORKSPACE_GID}`, {
-          headers: {
-            Accept: "application/json",
-            "X-Tunnel-Skip-AntiPhishing-Page": "True",
+        const res = await fetch(
+          `${API_BASE_URL}/projects?workspace=${WORKSPACE_GID}`,
+          {
+            headers: {
+              Accept: "application/json",
+              "X-Tunnel-Skip-AntiPhishing-Page": "True",
+            },
           },
-        });
+        );
 
-        const text = await res.text();
-        let json: any = null;
-        try {
-          json = text ? JSON.parse(text) : null;
-        } catch {
-          // ถ้าไม่ใช่ JSON ให้เก็บ raw ไว้ดู
-          json = { raw: text };
-        }
-
+        const json = await safeReadJson(res);
         if (!res.ok) {
-          throw new Error(`HTTP ${res.status}\n${text}`);
-        }
-
-
-        if (!res.ok)
           throw new Error(
             `HTTP ${res.status}\n${JSON.stringify(json, null, 2)}`,
           );
+        }
 
         const list = Array.isArray(json)
           ? (json as Project[])
           : ((json as any)?.data ?? []);
         setProjectsState({ status: "success", data: list, error: null });
-
-        // if (list.length > 0)
-        //   setSelectedProjectGid((prev) => prev || list[0].gid);
       } catch (e) {
         setProjectsState({
           status: "error",
@@ -199,9 +224,8 @@ function Form(): JSX.Element {
       url.searchParams.set("order_id", orderId);
 
       const res = await fetch(url.toString());
-      const text = await res.text();
-      const json = JSON.parse(text) as {
-        ok: boolean;
+      const json = (await safeReadJson(res)) as {
+        ok?: boolean;
         found?: boolean;
         user?: { tax?: string; companyName?: string } | null;
         order?: {
@@ -219,11 +243,10 @@ function Form(): JSX.Element {
         error?: string;
       };
 
-      if (!res.ok) throw new Error(`GAS HTTP ${res.status}\n${text}`);
-      if (!json.ok) throw new Error(json.error || "GAS ok:false");
+      if (!res.ok) throw new Error(`GAS HTTP ${res.status}\n${JSON.stringify(json, null, 2)}`);
+      if (json.ok === false) throw new Error(json.error || "GAS ok:false");
       if (!json.found || !json.order) return;
 
-      // เติมข้อมูลลง formData
       setFormData((prev) => ({
         ...prev,
         tax_id: json.user?.tax ?? prev.tax_id,
@@ -233,7 +256,7 @@ function Form(): JSX.Element {
         email: String(json.order?.email ?? ""),
         lineId: String(json.order?.line ?? ""),
         address: String(json.order?.address ?? ""),
-        jobName: String(json.order?.projectName ?? prev.jobName), // ถ้าคุณอยากเอาชื่องานเก่า แนะนำเก็บเพิ่มในชีทภายหลัง
+        jobName: String(json.order?.projectName ?? prev.jobName),
         quantity: String(json.order?.quantity ?? ""),
         startDate: String(json.order?.startDate ?? ""),
         endDate: String(json.order?.endDate ?? ""),
@@ -248,9 +271,7 @@ function Form(): JSX.Element {
       }
     };
 
-    run().catch((e) => {
-      console.error(e);
-    });
+    run().catch((e) => console.error(e));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, projectsState.status]);
 
@@ -262,11 +283,9 @@ function Form(): JSX.Element {
     setFormData((prev) => {
       const next = { ...prev, [name]: value };
 
-      // ถ้าเปลี่ยน startDate แล้ว endDate กลายเป็น "ก่อน" startDate → เคลียร์ endDate
       if (name === "startDate" && next.endDate && next.endDate < value) {
         next.endDate = "";
       }
-
       return next;
     });
   };
@@ -303,15 +322,14 @@ function Form(): JSX.Element {
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
+
     setCreating(true);
     setResult("");
 
     try {
-      if (projectsState.status !== "success")
-        throw new Error("Projects ยังโหลดไม่เสร็จ");
-      const selectedProject = projectsState.data.find(
-        (p) => p.gid === selectedProjectGid,
-      );
+      if (projectsState.status !== "success") throw new Error("Projects ยังโหลดไม่เสร็จ");
+
+      const selectedProject = projectsState.data.find((p) => p.gid === selectedProjectGid);
       if (!selectedProject) throw new Error("ไม่พบโปรเจกต์ที่เลือก");
 
       const formEl = e.currentTarget as HTMLFormElement;
@@ -332,23 +350,18 @@ function Form(): JSX.Element {
 
       const lines: string[] = [];
 
-      // --- ข้อมูลลูกค้า ( ---
-      if (formData.tax_id.trim())
-        lines.push(`TAX ID: ${formData.tax_id.trim()}`);
-      if (formData.company.trim())
-        lines.push(`ชื่อบริษัท/หน่วยงาน: ${formData.company.trim()}`);
-      if (formData.fullName.trim())
-        lines.push(`ชื่อ: ${formData.fullName.trim()}`);
+      // --- ข้อมูลลูกค้า ---
+      if (formData.tax_id.trim()) lines.push(`TAX ID: ${formData.tax_id.trim()}`);
+      if (formData.company.trim()) lines.push(`ชื่อบริษัท/หน่วยงาน: ${formData.company.trim()}`);
+      if (formData.fullName.trim()) lines.push(`ชื่อ: ${formData.fullName.trim()}`);
       if (workType) lines.push(`ประเภทงาน: ${workType}`);
 
-      if (formData.phoneNumber.trim())
-        lines.push(`เบอร์โทร: ${formData.phoneNumber.trim()}`);
+      if (formData.phoneNumber.trim()) lines.push(`เบอร์โทร: ${formData.phoneNumber.trim()}`);
       if (formData.email.trim()) lines.push(`อีเมล: ${formData.email.trim()}`);
       if (formData.lineId.trim()) lines.push(`Line: ${formData.lineId.trim()}`);
-      if (formData.address.trim())
-        lines.push(`ที่อยู่: ${formData.address.trim()}`);
+      if (formData.address.trim()) lines.push(`ที่อยู่: ${formData.address.trim()}`);
 
-      // --- รายละเอียดงาน (แสดงเฉพาะที่กรอก/เลือก) ---
+      // --- รายละเอียดงาน ---
       const jobName = getStr("jobName");
       if (jobName) lines.push(`ชื่องาน: ${jobName}`);
 
@@ -371,14 +384,14 @@ function Form(): JSX.Element {
       const billTypes = getAllStr("billType");
       if (billTypes.length > 0) lines.push(`งานบิล: ${billTypes.join(", ")}`);
 
-      // --- ปะสันสี (แสดงเฉพาะที่เลือก/กรอก) ---
+      // --- ปะสันสี ---
       const paperColor = getStr("pasansee_paper_color");
       if (paperColor) lines.push(`ปะสันกระดาษ: ${paperColor}`);
 
       const laxineColor = getStr("pasansee_laxine_color");
       if (laxineColor) lines.push(`ปะสันแล็กซีน: ${laxineColor}`);
 
-      // --- การเข้าเล่ม / ตีปรุ / รันนัมเบอร์ (แสดงเฉพาะที่เลือก/กรอก) ---
+      // --- การเข้าเล่ม / ตีปรุ / รันนัมเบอร์ ---
       if (checked("bind_wire_enabled")) {
         const pos = getStr("bind_wire_pos");
         lines.push(pos ? `เย็บลวด: ${pos}` : "เย็บลวด");
@@ -406,12 +419,9 @@ function Form(): JSX.Element {
         lines.push(pos ? `ปรุ: ${pos}` : "ปรุ");
       }
 
-      // เพิ่มเติม (ของเดิม)
-      if (formData.extra.trim())
-        lines.push(`เพิ่มเติม: ${formData.extra.trim()}`);
+      if (formData.extra.trim()) lines.push(`เพิ่มเติม: ${formData.extra.trim()}`);
 
-      // --- รันนัมเบอร์ (แสดงเฉพาะที่เลือก/กรอก) ---
-
+      // --- รันนัมเบอร์ ---
       if (checked("bind_run_enabled")) {
         const color = getStr("bind_run_color");
         const book = getStr("bind_run_book");
@@ -420,11 +430,7 @@ function Form(): JSX.Element {
         const rangeCustom = getStr("bind_run_range_custom");
 
         const rangeText =
-          range === "ยาว"
-            ? rangeCustom
-              ? `ยาว ${rangeCustom}`
-              : "ยาว"
-            : range;
+          range === "ยาว" ? (rangeCustom ? `ยาว ${rangeCustom}` : "ยาว") : range;
 
         if (color) lines.push(`รันนัมเบอร์ สี/${color}`);
         if (book) lines.push(`เล่มที่ ${book}`);
@@ -435,107 +441,95 @@ function Form(): JSX.Element {
       const detail = getStr("detail");
       const unit = getStr("unit");
       const size = getStr("size");
-      
 
-      //รายละเอียดงาน
       const parts: string[] = [];
       if (detail) parts.push(`ขนาดสำเร็จ: ${detail}${unit ? ` ${unit}` : ""}`);
       if (size) parts.push(`ขนาดตัดกระดาษ: ${size}`);
       if (parts.length) lines.push(parts.join(" | "));
 
       const count_Detail = getStr("count_Detail");
-        if (count_Detail) lines.push(`จำนวนพิมพ์: ${count_Detail}`);
+      if (count_Detail) lines.push(`จำนวนพิมพ์: ${count_Detail}`);
 
       const Detail_Type = getAllStr("Detail_Type");
-      if (Detail_Type.length > 0)
-        lines.push(`รูปแบบ: ${Detail_Type.join(", ")}`);
-
+      if (Detail_Type.length > 0) lines.push(`รูปแบบ: ${Detail_Type.join(", ")}`);
 
       // ชนิดรูปแบบงาน
-      const typeWorks = getAllStr("type_of_work"); // ได้หลายค่า
+      const typeWorks = getAllStr("type_of_work");
       const otherType = getStr("other_type_of_work");
       const finalTypeWorks = typeWorks
-        .map((x) =>
-          x === "อื่นๆ" ? (otherType ? `อื่นๆ: ${otherType}` : "อื่นๆ") : x,
-        )
+        .map((x) => (x === "อื่นๆ" ? (otherType ? `อื่นๆ: ${otherType}` : "อื่นๆ") : x))
         .filter((x) => x.length > 0);
+      if (finalTypeWorks.length > 0) lines.push(`ชนิดรูปแบบงาน: ${finalTypeWorks.join(", ")}`);
 
-      if (finalTypeWorks.length > 0) {
-        lines.push(`ชนิดรูปแบบงาน: ${finalTypeWorks.join(", ")}`);
-      }
-
-      //เครื่องพิมพ์
+      // เครื่องพิมพ์
       const printer = getAllStr("printer");
-      const finalprinter = printer;
-      if (finalprinter.length > 0) {
-        lines.push(`เครื่องพิมพ์: ${finalprinter.join(", ")}`);
-      }
+      if (printer.length > 0) lines.push(`เครื่องพิมพ์: ${printer.join(", ")}`);
 
       const notes = lines.join("\n");
 
-      const payload = {
+      // =========================
+      // 1) สร้าง Main Task (ในโปรเจกต์ที่เลือก)
+      // =========================
+      const createMainPayload = {
         data: {
           name: getStr("jobName"),
-          notes, // description
+          notes,
           projects: [selectedProjectGid],
           start_on: getStr("startDate"),
           due_on: getStr("endDate"),
         },
       };
 
-      const res = await fetch(`${API_BASE_URL}/tasks`, {
+      const mainJson = await fetchJsonOrThrow(`${API_BASE_URL}/tasks`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
           "X-Tunnel-Skip-AntiPhishing-Page": "True",
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(createMainPayload),
       });
 
-      const text = await res.text();
-      const json = JSON.parse(text);
-
-      if (!res.ok) {
-        throw new Error(
-          `POST /tasks failed (HTTP ${res.status})\n${JSON.stringify(json, null, 2)}`,
-        );
+      const taskGid = getTaskGid(mainJson);
+      if (!taskGid) {
+        throw new Error("สร้าง Task แล้ว แต่ไม่ได้ taskGid (response shape ไม่ตรง)");
       }
 
-      const taskGid = getTaskGid(json);
-      if (!taskGid)
-        throw new Error(
-          "สร้าง Task แล้ว แต่ไม่ได้ taskGid (response shape ไม่ตรง)",
-        );
+      const mainTaskInfoJson = await fetchJsonOrThrow(
+        `${API_BASE_URL}/tasks/${taskGid}?opt_fields=gid,name,permalink_url`,
+        { headers: { Accept: "application/json", "X-Tunnel-Skip-AntiPhishing-Page": "True" } },
+      );
+      const mainTaskInfo = normalizeAsanaTask(mainTaskInfoJson);
+
       const fileLinks: FileLink[] = [];
 
       if (files.length > 0) {
-       for (const file of files) {
+        for (const file of files) {
           const form = new FormData();
           form.append("file", file);
 
-          const up = await fetch(`${API_BASE_URL}/tasks/${taskGid}/attachments`, {
+          const upRes = await fetch(`${API_BASE_URL}/tasks/${taskGid}/attachments`, {
             method: "POST",
             body: form,
           });
 
-          const upText = await up.text();
-          const upJson = JSON.parse(upText);
+          const upJson = await safeReadJson(upRes);
+          if (!upRes.ok) {
+            
+            fileLinks.push({ name: file.name, url: "" });
+            continue;
+          }
 
-          const att = parseUploadAttachment(upJson); // ต้องได้ gid + name
+          const att = parseUploadAttachment(upJson);
           if (!att?.gid) {
             fileLinks.push({ name: file.name, url: "" });
             continue;
           }
 
-          const metaRes = await fetch(
+          const metaJson = await fetchJsonOrThrow(
             `${API_BASE_URL}/attachments/${att.gid}?opt_fields=name,permanent_url`,
+            { headers: { Accept: "application/json", "X-Tunnel-Skip-AntiPhishing-Page": "True" } },
           );
-          if (!metaRes.ok) {
-            fileLinks.push({ name: att.name ?? file.name, url: "" });
-            continue;
-          }
-          const metaJson = await metaRes.json();
           const meta = parseUploadAttachment(metaJson);
 
           fileLinks.push({
@@ -545,13 +539,94 @@ function Form(): JSX.Element {
         }
       }
 
+      
+      if (fileLinks.length > 0) {
+        const linksText =
+          "\n\nไฟล์แนบ:\n" + fileLinks.map((f) => `- ${f.name}: ${f.url || "-"}`).join("\n");
 
+        await fetchJsonOrThrow(`${API_BASE_URL}/tasks/${taskGid}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "X-Tunnel-Skip-AntiPhishing-Page": "True",
+          },
+          body: JSON.stringify({ data: { notes: notes + linksText } }),
+        });
+      }
+
+  
+      const otherTasks: AsanaTaskMini[] = [];
+      const mainRef =
+        mainTaskInfo?.permalink_url
+          ? `\n\nอ้างอิงงานหลัก: ${mainTaskInfo.permalink_url}`
+          : `\n\nอ้างอิงงานหลัก (GID): ${taskGid}`;
+
+      const attachText =
+        fileLinks.length > 0
+          ? "\n\nไฟล์แนบ (จากงานหลัก):\n" +
+            fileLinks.map((f) => `- ${f.name}: ${f.url || "-"}`).join("\n")
+          : "";
+
+      
+     for (const row of subtasks ?? []) {
+  const pgid = String(row.projectGid ?? "").trim();
+  const nm = String(row.name ?? "").trim();
+
+  // ถ้าไม่มี project gid หรือเป็นโปรเจกต์เดียวกับงานหลัก 
+  // (คุณสามารถเลือกได้ว่าจะข้าม หรือจะสร้าง subtask ในโปรเจกต์หลักเฉยๆ)
+  if (!pgid) continue; 
+
+  const taskName = nm || getStr("jobName");
+
+  const createOtherPayload = {
+    data: {
+      name: taskName,
+      notes: notes + mainRef + attachText,
+      // ใส่โปรเจกต์เพื่อให้มันไปปรากฏในบอร์ดของโปรเจกต์อื่นด้วย
+      projects: [pgid], 
+      start_on: getStr("startDate"),
+      due_on: getStr("endDate"),
+    },
+  };
+
+  try {
+    // 🚩 จุดที่เปลี่ยน: เปลี่ยน URL เพื่อบอก Asana ว่านี่คือ Subtask ของ taskGid
+    const otherCreateJson = await fetchJsonOrThrow(
+      `${API_BASE_URL}/tasks/${taskGid}/subtasks`, // <-- เปลี่ยนตรงนี้
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "X-Tunnel-Skip-AntiPhishing-Page": "True",
+        },
+        body: JSON.stringify(createOtherPayload),
+      }
+    );
+
+    const otherGid = getTaskGid(otherCreateJson);
+    if (!otherGid) continue;
+
+    const otherInfoJson = await fetchJsonOrThrow(
+      `${API_BASE_URL}/tasks/${otherGid}?opt_fields=gid,name,permalink_url`,
+      { headers: { Accept: "application/json", "X-Tunnel-Skip-AntiPhishing-Page": "True" } },
+    );
+
+    const otherInfo = normalizeAsanaTask(otherInfoJson);
+    if (otherInfo) otherTasks.push(otherInfo);
+  } catch (err) {
+    console.error("create subtask failed:", err);
+  }
+}
+
+    
       const GAS_URL =
         "https://script.google.com/macros/s/AKfycbxyAK1Kqz8xPCOFdbUECiFQNMRcEMWhNoygkyV_Y0jVISpAcHjH3rGpAaZqqbE_sDVN5w/exec";
 
-      const gasRes = await fetch(GAS_URL, {
+      const gasJson = await fetchJsonOrThrow(GAS_URL, {
         method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" }, // ✅ กัน preflight
+        headers: { "Content-Type": "text/plain;charset=utf-8" }, 
         body: JSON.stringify({
           action: "saveOrder",
           payload: {
@@ -570,107 +645,41 @@ function Form(): JSX.Element {
               projectName: selectedProject?.name ?? "",
               quantity: formData.quantity,
               notes,
-              files: JSON.stringify(fileLinks), // ✅ เก็บเป็น JSON string
+              files: JSON.stringify(fileLinks),
+
+              // ✅ เก็บข้อมูล task ไว้
+              mainTask: JSON.stringify(mainTaskInfo ?? { gid: taskGid }),
+              otherTasks: JSON.stringify(otherTasks),
             },
           },
         }),
       });
 
-      const gasText = await gasRes.text();
-      let gasJson: unknown;
-      try {
-        gasJson = JSON.parse(gasText);
-      } catch {
-        gasJson = { raw: gasText };
-      }
-
-      if (!gasRes.ok) {
-        throw new Error(`GAS HTTP ${gasRes.status}\n${gasText}`);
-      }
 
       if (
         typeof gasJson === "object" &&
         gasJson !== null &&
-        "ok" in gasJson &&
-        (gasJson as { ok: boolean }).ok === false
+        "ok" in (gasJson as any) &&
+        (gasJson as any).ok === false
       ) {
         throw new Error(`GAS ok:false\n${JSON.stringify(gasJson, null, 2)}`);
       }
 
-      for (const s of subtasks) {
-        const name = s.name.trim();
-        if (!name) continue;
-
-        try {
-       const body: any = { data: { name } };
-            if (s.projectGid) body.data.projects = [s.projectGid];
-
-            const subRes = await fetch(`${API_BASE_URL}/tasks/${taskGid}/subtasks`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Accept: "application/json",
-                "X-Tunnel-Skip-AntiPhishing-Page": "True",
-              },
-              body: JSON.stringify(body),
-            });
-
-          const subText = await subRes.text();
-          let subJson: any;
-          try {
-            subJson = JSON.parse(subText);
-          } catch {
-            subJson = { raw: subText };
-          }
-
-          if (!subRes.ok) {
-            throw new Error(`create subtask HTTP ${subRes.status}\n${subText}`);
-          }
-
-          const subGid = subJson?.data?.gid || subJson?.gid;
-          if (!subGid) throw new Error("สร้าง subtask สำเร็จแต่หา gid ไม่เจอ");
-
-          if (s.projectGid) {
-            const addRes = await fetch(`${API_BASE_URL}/tasks/${subGid}/addProject`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Accept: "application/json",
-                "X-Tunnel-Skip-AntiPhishing-Page": "True",
-              },
-              body: JSON.stringify({ data: { project: s.projectGid } }),
-            });
-
-            if (!addRes.ok) {
-              const addText = await addRes.text();
-              throw new Error(`addProject HTTP ${addRes.status}\n${addText}`);
-            }
-          }
-        } catch (err) {
-          console.error("subtask failed:", s, err);
-          // ไม่ throw เพื่อให้ไปสร้างตัวถัดไปต่อ
-        }
-      }
-
-      // ถ้าไม่มีไฟล์ ก็แสดงผลสร้าง task อย่างเดียว
-
       setSuccessMessage("ส่งใบสั่งพิมพ์สำเร็จ");
       setSuccessOpen(true);
-
-      setResult("✅ สร้าง Task สำเร็จ\n\n" + JSON.stringify(json, null, 2));
-    } catch (e) {
-      setResult("❌ Error\n\n" + (e instanceof Error ? e.message : String(e)));
-      const msg = e instanceof Error ? e.message : String(e);
+      setResult("✅ สร้าง Task สำเร็จ\n\n" + JSON.stringify(mainJson, null, 2));
+    } catch (e2) {
+      const msg = e2 instanceof Error ? e2.message : String(e2);
+      setResult("❌ Error\n\n" + msg);
       setFormError(msg);
     } finally {
       setCreating(false);
     }
   };
+
   const showPaperUsed = workType === "หนังสือ" || workType === "อื่นๆ";
-  const showPasansee =
-    workType === "ฏีกา" || workType === "หนังสือ" || workType === "อื่นๆ";
-  const showBinding =
-    workType === "ฏีกา" || workType === "หนังสือ" || workType === "อื่นๆ";
+  const showPasansee = workType === "ฏีกา" || workType === "หนังสือ" || workType === "อื่นๆ";
+  const showBinding = workType === "ฏีกา" || workType === "หนังสือ" || workType === "อื่นๆ";
 
   return (
     <>
@@ -686,7 +695,7 @@ function Form(): JSX.Element {
         <section className="min-h-[60vh] flex items-center justify-center pb-16">
           {projectsState.status === "loading" && (
             <div>
-               <span className="loading loading-spinner loading-xl"></span>
+              <span className="loading loading-spinner loading-xl"></span>
             </div>
           )}
 
@@ -727,27 +736,24 @@ function Form(): JSX.Element {
                       />
                     </div>
                   </div>
+
                   <div className="grid px-6 py-5">
                     <label>
-                      ชื่อบริษัท/หน่วยงาน{" "}
-                      <span className="text-red-600">*</span>
+                      ชื่อบริษัท/หน่วยงาน <span className="text-red-600">*</span>
                     </label>
                     <input
                       name="company"
                       value={formData.company}
                       onChange={handleChange}
                       className={`mt-2 w-full rounded-xl px-3 py-2.5 text-base sm:text-sm outline-none
-                          ${
-                            errors.fullName
-                              ? "border border-rose-500 focus:border-rose-600"
-                              : "border border-slate-300 focus:border-slate-900"
-                          }
-                        `}
-                                          />
+                        ${
+                          errors.fullName
+                            ? "border border-rose-500 focus:border-rose-600"
+                            : "border border-slate-300 focus:border-slate-900"
+                        }`}
+                    />
                     {errors.company && (
-                      <p className="mt-1 text-xs text-rose-600">
-                        {errors.company}
-                      </p>
+                      <p className="mt-1 text-xs text-rose-600">{errors.company}</p>
                     )}
                   </div>
 
@@ -765,13 +771,10 @@ function Form(): JSX.Element {
                             errors.fullName
                               ? "border border-rose-500 focus:border-rose-600"
                               : "border border-slate-300 focus:border-slate-900"
-                          }
-                        `}
+                          }`}
                       />
                       {errors.fullName && (
-                        <p className="mt-1 text-xs text-rose-600">
-                          {errors.fullName}
-                        </p>
+                        <p className="mt-1 text-xs text-rose-600">{errors.fullName}</p>
                       )}
                     </div>
 
@@ -787,17 +790,14 @@ function Form(): JSX.Element {
                         pattern="[0-9]*"
                         onChange={handleChange}
                         className={`mt-2 w-full rounded-xl px-3 py-2.5 text-base sm:text-sm outline-none
-                            ${
-                              errors.fullName
-                                ? "border border-rose-500 focus:border-rose-600"
-                                : "border border-slate-300 focus:border-slate-900"
-                            }
-                          `}
+                          ${
+                            errors.fullName
+                              ? "border border-rose-500 focus:border-rose-600"
+                              : "border border-slate-300 focus:border-slate-900"
+                          }`}
                       />
                       {errors.phoneNumber && (
-                        <p className="mt-1 text-xs text-rose-600">
-                          {errors.phoneNumber}
-                        </p>
+                        <p className="mt-1 text-xs text-rose-600">{errors.phoneNumber}</p>
                       )}
                     </div>
 
@@ -815,13 +815,10 @@ function Form(): JSX.Element {
                             errors.fullName
                               ? "border border-rose-500 focus:border-rose-600"
                               : "border border-slate-300 focus:border-slate-900"
-                          }
-                        `}
+                          }`}
                       />
                       {errors.email && (
-                        <p className="mt-1 text-xs text-rose-600">
-                          {errors.email}
-                        </p>
+                        <p className="mt-1 text-xs text-rose-600">{errors.email}</p>
                       )}
                     </div>
 
@@ -846,18 +843,15 @@ function Form(): JSX.Element {
                         value={formData.address}
                         onChange={handleChange}
                         rows={3}
-                       className={`mt-2 w-full rounded-xl px-3 py-2.5 text-base sm:text-sm outline-none resize-none
-                        ${
-                          errors.fullName
-                            ? "border border-rose-500 focus:border-rose-600"
-                            : "border border-slate-300 focus:border-slate-900"
-                        }
-                      `}
+                        className={`mt-2 w-full rounded-xl px-3 py-2.5 text-base sm:text-sm outline-none resize-none
+                          ${
+                            errors.fullName
+                              ? "border border-rose-500 focus:border-rose-600"
+                              : "border border-slate-300 focus:border-slate-900"
+                          }`}
                       />
                       {errors.address && (
-                        <p className="mt-1 text-xs text-rose-600">
-                          {errors.address}
-                        </p>
+                        <p className="mt-1 text-xs text-rose-600">{errors.address}</p>
                       )}
                     </div>
                   </div>
@@ -866,9 +860,8 @@ function Form(): JSX.Element {
 
               <div className="w-full bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden ">
                 <div className="border border-slate-200 rounded-2xl px-6 py-5">
-                  <h2 className=" pt-6 text-lg sm:text-xl font-semibold">
-                    รายละเอียดงาน
-                  </h2>
+                  <h2 className=" pt-6 text-lg sm:text-xl font-semibold">รายละเอียดงาน</h2>
+
                   <div className="grid grid-cols-2 md:grid-cols-2 gap-6 px-6 py-5">
                     <div>
                       <label>
@@ -879,15 +872,15 @@ function Form(): JSX.Element {
                         name="startDate"
                         value={formData.startDate}
                         onChange={handleChange}
-                       className={[
+                        className={[
                           "mt-2 w-full rounded-xl border bg-white px-3 py-2.5 text-base sm:text-sm outline-none",
-                          errors.startDate ? "border-rose-400 focus:border-rose-500" : "border-slate-300 focus:border-slate-900",
+                          errors.startDate
+                            ? "border-rose-400 focus:border-rose-500"
+                            : "border-slate-300 focus:border-slate-900",
                         ].join(" ")}
                       />
                       {errors.startDate && (
-                        <p className="mt-1 text-xs text-rose-600">
-                          {errors.startDate}
-                        </p>
+                        <p className="mt-1 text-xs text-rose-600">{errors.startDate}</p>
                       )}
                     </div>
 
@@ -903,32 +896,32 @@ function Form(): JSX.Element {
                         min={formData.startDate || undefined}
                         className={[
                           "mt-2 w-full rounded-xl border bg-white px-3 py-2.5 text-base sm:text-sm outline-none",
-                          errors.endDate ? "border-rose-400 focus:border-rose-500" : "border-slate-300 focus:border-slate-900",
+                          errors.endDate
+                            ? "border-rose-400 focus:border-rose-500"
+                            : "border-slate-300 focus:border-slate-900",
                         ].join(" ")}
                       />
                       {errors.endDate && (
-                        <p className="mt-1 text-xs text-rose-600">
-                          {errors.endDate}
-                        </p>
+                        <p className="mt-1 text-xs text-rose-600">{errors.endDate}</p>
                       )}
                     </div>
                   </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 px-6 py-5">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                       <div>
                         <label className="text-sm font-medium text-slate-800">
-                          Project
-                          <span className="text-red-600">*</span>
+                          Project <span className="text-red-600">*</span>
                         </label>
                         <select
                           value={selectedProjectGid}
-                          onChange={(e) =>
-                            setSelectedProjectGid(e.target.value)
-                          }
+                          onChange={(e) => setSelectedProjectGid(e.target.value)}
                           className={[
-                          "mt-2 w-full rounded-xl border bg-white px-3 py-2.5 text-base sm:text-sm outline-none",
-                          errors.project ? "border-rose-400 focus:border-rose-500" : "border-slate-300 focus:border-slate-900",
-                        ].join(" ")}
+                            "mt-2 w-full rounded-xl border bg-white px-3 py-2.5 text-base sm:text-sm outline-none",
+                            errors.project
+                              ? "border-rose-400 focus:border-rose-500"
+                              : "border-slate-300 focus:border-slate-900",
+                          ].join(" ")}
                         >
                           <option value="" disabled>
                             เลือกโปรเจกต์
@@ -940,16 +933,15 @@ function Form(): JSX.Element {
                           ))}
                         </select>
                         {errors.project && (
-                          <p className="mt-1 text-xs text-rose-600">
-                            {errors.project}
-                          </p>
+                          <p className="mt-1 text-xs text-rose-600">{errors.project}</p>
                         )}
                       </div>
+
                       <div>
                         <label>
                           จำนวนสั่ง <span className="text-red-600">*</span>
                         </label>
-                       <input
+                        <input
                           type="number"
                           name="quantity"
                           value={formData.quantity}
@@ -960,14 +952,12 @@ function Form(): JSX.Element {
                             errors.quantity ? "border-rose-500" : "border-slate-300"
                           }`}
                         />
-
                         {errors.quantity && (
-                          <p className="mt-1 text-xs text-rose-600">
-                            {errors.quantity}
-                          </p>
+                          <p className="mt-1 text-xs text-rose-600">{errors.quantity}</p>
                         )}
                       </div>
                     </div>
+
                     <div>
                       <label>
                         ชื่องาน <span className="text-red-600">*</span>
@@ -978,18 +968,18 @@ function Form(): JSX.Element {
                         onChange={handleChange}
                         className={[
                           "mt-2 w-full rounded-xl border bg-white px-3 py-2.5 text-base sm:text-sm outline-none",
-                          errors.jobName ? "border-rose-400 focus:border-rose-500" : "border-slate-300 focus:border-slate-900",
+                          errors.jobName
+                            ? "border-rose-400 focus:border-rose-500"
+                            : "border-slate-300 focus:border-slate-900",
                         ].join(" ")}
                       />
                       {errors.jobName && (
-                        <p className="mt-1 text-xs text-rose-600">
-                          {errors.jobName}
-                        </p>
+                        <p className="mt-1 text-xs text-rose-600">{errors.jobName}</p>
                       )}
                     </div>
+
                     <div className="text-sm font-medium text-slate-800">
                       <label>ประเภทงาน</label>
-
                       <select
                         value={workType}
                         onChange={(e) => setWorkType(e.target.value)}
@@ -1009,37 +999,33 @@ function Form(): JSX.Element {
                       </select>
                     </div>
                   </div>
+
+                  {/* ✅ ยังใช้ UI เดิม แต่ผลลัพธ์จะ "สร้าง Task ในโปรเจกอื่น" แทน subtask */}
                   <Subtask
-                    projects={
-                      projectsState.status === "success"
-                        ? projectsState.data
-                        : []
-                    }
+                    projects={projectsState.status === "success" ? projectsState.data : []}
                     value={subtasks}
                     onChange={setSubtasks}
                     disabled={creating || projectsState.status !== "success"}
                   />
+
                   <hr className="my-6 border-slate-200" />
 
                   {showPaperUsed && <Paper_used />}
-
                   {showPasansee && <Pasansee />}
-
                   {showBinding && <Binding />}
 
                   <Details key={detailsKey} files={files} setFiles={setFiles} />
 
-                 
                   <div key={`work-${resetKey}`}>
                     <TypeOfWork />
                   </div>
 
-               
                   <div key={`printer-${resetKey}`}>
                     <Printer />
                   </div>
                 </div>
               </div>
+
               {/* ปุ่มส่ง */}
               <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 pb-10 disabled:opacity-50 disabled:cursor-not-allowed">
                 <div className="flex justify-end">
@@ -1051,66 +1037,57 @@ function Form(): JSX.Element {
                     {creating ? "กำลังส่ง..." : "ส่งใบสั่งงาน"}
                   </button>
                 </div>
+
                 {successOpen && (
                   <div
                     className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-                    onClick={() => {
-                      setSuccessOpen(false);
-                    }}
+                    onClick={() => setSuccessOpen(false)}
                   >
                     <div
                       className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
-                      onClick={(e) => e.stopPropagation()}
-                     >
-                      <div className="text-lg font-semibold text-slate-900">
-                        สำเร็จ
-                      </div>
-                      <div className="mt-2 text-sm text-slate-700">
-                        {successMessage}
-                      </div>
+                      onClick={(ev) => ev.stopPropagation()}
+                    >
+                      <div className="text-lg font-semibold text-slate-900">สำเร็จ</div>
+                      <div className="mt-2 text-sm text-slate-700">{successMessage}</div>
 
                       <div className="mt-6 flex justify-end gap-2">
                         <button
                           type="button"
                           className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
                           onClick={() => {
-                      
                             setSuccessOpen(false);
-                           
                             resetForm();
-                           
                             window.scrollTo({ top: 0, behavior: "smooth" });
                           }}
-                          >
+                        >
                           ตกลง
                         </button>
-                        <PDFDownloadLink
-                            document={
-                              <MyPdfDocument
-                                customername={formData.fullName}
-                                phone={formData.phoneNumber}
-                                email={formData.email}
-                                companyName={formData.company}
-                                orderDate={formData.startDate}
-                                dueDate={formData.endDate}
-                                jobName={formData.jobName}
-                                line={formData.lineId}
-                                quantity={formData.quantity}
-                              />
-                            }
-                            fileName="user-info.pdf"
-                          >
-                            {({ loading }) => (
-                              <button
-                                type="button"
-                                className="rounded-xl bg-slate-700 px-4 py-2 text-sm text-white"
-                              >
-                                {loading ? "กำลังสร้าง PDF..." : "ดาวน์โหลด PDF"}
-                              </button>
-                            )}
-                          </PDFDownloadLink>
-                         
 
+                        <PDFDownloadLink
+                          document={
+                            <MyPdfDocument
+                              customername={formData.fullName}
+                              phone={formData.phoneNumber}
+                              email={formData.email}
+                              companyName={formData.company}
+                              orderDate={formData.startDate}
+                              dueDate={formData.endDate}
+                              jobName={formData.jobName}
+                              line={formData.lineId}
+                              quantity={formData.quantity}
+                            />
+                          }
+                          fileName="user-info.pdf"
+                        >
+                          {({ loading }) => (
+                            <button
+                              type="button"
+                              className="rounded-xl bg-slate-700 px-4 py-2 text-sm text-white"
+                            >
+                              {loading ? "กำลังสร้าง PDF..." : "ดาวน์โหลด PDF"}
+                            </button>
+                          )}
+                        </PDFDownloadLink>
                       </div>
                     </div>
                   </div>
@@ -1123,4 +1100,5 @@ function Form(): JSX.Element {
     </>
   );
 }
+
 export default Form;
