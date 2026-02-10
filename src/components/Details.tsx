@@ -22,15 +22,12 @@ export default function Details({ files, setFiles }: DetailsProps) {
         >
           คำนวณกระดาษ
         </button>
-
-        {/* ต้อง render ไว้ในหน้าเพื่อให้ ref ใช้งานได้ */}
-       <Calc
-        ref={calcRef}
-        onCaptured={(file) => {
-          console.log("CAPTURE FILE:", file); 
-          setFiles((prev) => [...prev, file]);
-        }}
-      />
+                <Calc
+            ref={calcRef}
+            onCaptured={(file) => {
+              setFiles((prev) => [...prev, file]);
+            }}
+          />
       </div>
 
       <div className=" p-2 grid grid-cols-2 md:grid-cols-2 gap-4 items-center text-base sm:text-sm text-slate-800">
