@@ -126,6 +126,7 @@ const Calc = forwardRef<CalcHandle, CalcProps>(function Calc(
     w: 0,
     h: 0,
   });
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const stats = useMemo(() => {
     const total = layout.length;
@@ -176,20 +177,26 @@ const Calc = forwardRef<CalcHandle, CalcProps>(function Calc(
 
   const captureRef = useRef<HTMLDivElement | null>(null);
 
-  const onCapture = async () => {
-    if (!captureRef.current) return;
 
+
+const onCapture = async () => {
+  if (!captureRef.current) return;
+  try {
     const blob = await htmlToImage.toBlob(captureRef.current);
     if (!blob) return;
+    const file = new File([blob], "paper-layout.png", { type: "image/png" });
+    
+    onCaptured(file);   
+    setShowSuccess(true);   
+    setTimeout(() => {
+      setShowSuccess(false);
+    }, 3000);
 
-    const file = new File([blob], "paper-layout.png", {
-      type: "image/png",
-    });
+  } catch (error) {
+    console.error("Capture failed", error);
+  }
+};
 
-    onCaptured(file); 
-  };
-
-  // ปิด = ไม่ render อะไร (แต่ยังถูกเรียก open() ได้)
   if (!isOpen) return null;
 
   const pad = 4;
@@ -423,6 +430,11 @@ const Calc = forwardRef<CalcHandle, CalcProps>(function Calc(
                           />
                         ))}
                       </svg>
+                      {showSuccess && (
+                      <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[60] bg-green-500 text-white px-6 py-3 rounded-full shadow-lg ">
+                         แนบไฟล์ไปยัง Asana สำเร็จ
+                      </div>
+                    )}
                     </div>
                   </div>
                 </div>
