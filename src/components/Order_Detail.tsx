@@ -236,11 +236,6 @@ function hasNoteFlag(notes: string, label: string): boolean {
     const typeOfWorkText = extractNoteValue(order.notes || "", "ชนิดรูปแบบงาน");
     const printer = extractNoteValue(order.notes || "", "เครื่องพิมพ์");
 
-
-    
-
-
-
     return {
       jobName,
       cleanNotes,
