@@ -205,247 +205,196 @@ const onCapture = async () => {
       ? `${-pad} ${-pad} ${sheetMm.w + pad * 2} ${sheetMm.h + pad * 2}`
       : "0 0 1 1";
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* overlay */}
-      <button
-        type="button"
-        aria-label="close overlay"
-        onClick={() => setIsOpen(false)}
-        className="absolute inset-0 bg-black/40"
-      />
+return (
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
+    {/* overlay */}
+    <button
+      type="button"
+      aria-label="close overlay"
+      onClick={() => setIsOpen(false)}
+      className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+    />
 
-      {/* modal */}
-      <div className="relative z-10 w-full max-w-5xl px-4">
-        <div className="rounded-2xl bg-white shadow-xl">
-          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-            <div className="text-base font-semibold text-slate-900">
-              คำนวณกระดาษ
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsOpen(false)}
-              className="rounded-xl px-3 py-1 text-sm font-semibold text-slate-700 hover:bg-slate-100"
-            >
-              ปิด
-            </button>
-          </div>
+    {/* modal */}
+    <div className="relative z-10 flex h-full max-h-[95vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+      
+      {/* Header - ล็อกให้อยู่กับที่เสมอ */}
+      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-6">
+        <div className="text-base font-bold text-slate-900">คำนวณกระดาษ</div>
+        <button
+          type="button"
+          onClick={() => setIsOpen(false)}
+          className="rounded-xl bg-slate-100 px-4 py-1.5 text-sm font-bold text-slate-700 hover:bg-slate-200"
+        >
+          ปิด
+        </button>
+      </div>
 
-          {/* body */}
-          <div className="bg-slate-50 p-4">
-            <div className="mx-auto max-w-5xl">
-              <h1 className="mb-4 text-center text-xl font-semibold text-slate-900">
-                Sticker Layout Optimizer
-              </h1>
+      {/* Body - ส่วนนี้จะ Scroll ได้ถ้าจอมือถือสั้น */}
+      <div className="flex-1 overflow-y-auto bg-slate-50 p-4 sm:p-6">
+        <div className="mx-auto max-w-5xl">
+          <h1 className="mb-4 text-center text-xl font-bold text-slate-900">
+            Sticker Layout Optimizer
+          </h1>
 
-              <div className="grid gap-4 lg:grid-cols-2">
-                {/* Left: Form */}
-                <div className="rounded-2xl bg-white p-4 shadow">
-                  <div className="space-y-4">
-                    <div>
-                      <h2 className="mb-2 text-base font-semibold text-slate-900">
-                        ขนาดแผ่นใหญ่
-                      </h2>
-
-                      <label className="mb-1 block text-sm font-medium text-slate-700">
-                        หน่วยวัด
-                      </label>
-                      <select
-                        value={sheetUnit}
-                        onChange={(e) => setSheetUnit(e.target.value as Unit)}
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2"
-                      >
-                        <option value="mm">mm</option>
-                        <option value="cm">cm</option>
-                        <option value="inch">inch</option>
-                      </select>
-
-                      <div className="mt-3 grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="mb-1 block text-sm font-medium text-slate-700">
-                            ความกว้างแผ่นใหญ่ (Width)
-                          </label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={sheetWidthInput}
-                            onChange={(e) => setSheetWidthInput(e.target.value)}
-                            required
-                            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="mb-1 block text-sm font-medium text-slate-700">
-                            ความสูงแผ่นใหญ่ (Height)
-                          </label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={sheetHeightInput}
-                            onChange={(e) =>
-                              setSheetHeightInput(e.target.value)
-                            }
-                            required
-                            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <h2 className="mb-2 text-base font-semibold text-slate-900">
-                        ขนาดแผ่นพิมพ์
-                      </h2>
-
-                      <label className="mb-1 block text-sm font-medium text-slate-700">
-                        หน่วยวัด
-                      </label>
-                      <select
-                        value={stickerUnit}
-                        onChange={(e) => setStickerUnit(e.target.value as Unit)}
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2"
-                      >
-                        <option value="mm">mm</option>
-                        <option value="cm">cm</option>
-                        <option value="inch">inch</option>
-                      </select>
-
-                      <div className="mt-3 grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="mb-1 block text-sm font-medium text-slate-700">
-                            ความกว้างแผ่นพิมพ์ (Width)
-                          </label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={stickerWidthInput}
-                            onChange={(e) =>
-                              setStickerWidthInput(e.target.value)
-                            }
-                            required
-                            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="mb-1 block text-sm font-medium text-slate-700">
-                            ความสูงแผ่นพิมพ์ (Height)
-                          </label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={stickerHeightInput}
-                            onChange={(e) =>
-                              setStickerHeightInput(e.target.value)
-                            }
-                            required
-                            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={onCalculate}
-                      className="w-full rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+          <div className="grid gap-4 lg:grid-cols-2">
+            {/* Left: Form */}
+            <div className="space-y-4 rounded-2xl bg-white p-4 shadow-sm border border-slate-100">
+              <section>
+                <h2 className="mb-3 text-sm font-bold text-slate-900 uppercase tracking-tight">ขนาดแผ่นใหญ่</h2>
+                <div className="space-y-3">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-500">หน่วยวัด</label>
+                    <select
+                      value={sheetUnit}
+                      onChange={(e) => setSheetUnit(e.target.value as Unit)}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      Calculate
-                    </button>
-
-                    {(sheetMm.w <= 0 ||
-                      sheetMm.h <= 0 ||
-                      layout.length === 0) && (
-                      <p className="text-xs text-slate-500">
-                        *กรอกค่าทั้งหมดให้มากกว่า 0 แล้วกด Calculate
-                      </p>
-                    )}
+                      <option value="mm">mm</option>
+                      <option value="cm">cm</option>
+                      <option value="inch">inch</option>
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="block text-xs font-medium text-slate-500 text-nowrap">กว้าง (Width)</label>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        value={sheetWidthInput}
+                        onChange={(e) => setSheetWidthInput(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-xs font-medium text-slate-500 text-nowrap">สูง (Height)</label>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        value={sheetHeightInput}
+                        onChange={(e) => setSheetHeightInput(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
                   </div>
                 </div>
+              </section>
 
-                {/* Right: Result + SVG */}
-                <div className="rounded-2xl bg-white p-4 shadow">
-                  <h2 className="mb-3 text-base font-semibold text-slate-900">
-                    Results
-                  </h2>
+              <hr className="border-slate-100" />
 
-                  <div className="space-y-1 text-sm text-slate-700">
-                    <div>
-                      จำนวนชิ้นงานทั้งหมด :{" "}
-                      <span className="font-semibold">{stats.total}</span>
-                    </div>
-                    <div>
-                      วางตามแนวตั้ง :{" "}
-                      <span className="font-semibold">
-                        {stats.horizontalCount}
-                      </span>
-                    </div>
-                    <div>
-                      วางตามแนวนอน :{" "}
-                      <span className="font-semibold">
-                        {stats.verticalCount}
-                      </span>
-                    </div>
-                    
-                    <div>
-                      <button type="button" onClick={onCapture}
-                      className="w-full rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
-                       แนบไปที่ Asana
-                      </button>
-                    </div>
+              <section>
+                <h2 className="mb-3 text-sm font-bold text-slate-900 uppercase tracking-tight">ขนาดแผ่นพิมพ์</h2>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="col-span-2 space-y-1">
+                    <label className="block text-xs font-medium text-slate-500">หน่วยวัด</label>
+                    <select
+                      value={stickerUnit}
+                      onChange={(e) => setStickerUnit(e.target.value as Unit)}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-green-500"
+                    >
+                      <option value="mm">mm</option>
+                      <option value="cm">cm</option>
+                      <option value="inch">inch</option>
+                    </select>
                   </div>
-                  <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
-                    <div ref={captureRef} className="p-3 bg-white">
-                      <svg
-                        width="100%"
-                        height="400"
-                        viewBox={vb}
-                        preserveAspectRatio="xMidYMid meet"
-                      >
-                        {sheetMm.w > 0 && sheetMm.h > 0 && (
-                          <rect
-                            x={0}
-                            y={0}
-                            width={sheetMm.w}
-                            height={sheetMm.h}
-                            fill="transparent"
-                          />
-                        )}
-
-                        {layout.map((s, i) => (
-                          <rect
-                            key={i}
-                            x={s.x}
-                            y={s.y}
-                            width={s.width}
-                            height={s.height}
-                            fill="none"
-                            stroke={
-                              s.orientation === "horizontal"
-                                ? "#007bff"
-                                : "#28a745"
-                            }
-                            strokeWidth={2}
-                          />
-                        ))}
-                      </svg>
-                      {showSuccess && (
-                      <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[60] bg-green-500 text-white px-6 py-3 rounded-full shadow-lg ">
-                         แนบไฟล์ไปยัง Asana สำเร็จ
-                      </div>
-                    )}
-                    </div>
+                  <div className="space-y-1">
+                    <label className="block text-xs font-medium text-slate-500 text-nowrap">กว้าง (Width)</label>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      value={stickerWidthInput}
+                      onChange={(e) => setStickerWidthInput(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-green-500"
+                    />
                   </div>
+                  <div className="space-y-1">
+                    <label className="block text-xs font-medium text-slate-500 text-nowrap">สูง (Height)</label>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      value={stickerHeightInput}
+                      onChange={(e) => setStickerHeightInput(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  </div>
+                </div>
+              </section>
+
+              <button
+                type="button"
+                onClick={onCalculate}
+                className="w-full rounded-xl bg-slate-900 py-3 text-sm font-bold text-white shadow-lg active:scale-95 transition-transform"
+              >
+                Calculate
+              </button>
+            </div>
+
+            {/* Right: Results & Preview */}
+            <div className="space-y-4 rounded-2xl bg-white p-4 shadow-sm border border-slate-100">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-sm font-bold text-slate-900 uppercase tracking-tight">Results</h2>
+                <div className="flex gap-2 text-[10px] font-bold">
+                  <span className="rounded bg-blue-100 px-2 py-0.5 text-blue-700">แนวตั้ง: {stats.horizontalCount}</span>
+                  <span className="rounded bg-green-100 px-2 py-0.5 text-green-700">แนวนอน: {stats.verticalCount}</span>
                 </div>
               </div>
+
+              <div className="rounded-xl bg-slate-900 p-3 text-center text-white">
+                <div className="text-[10px] uppercase opacity-60">จำนวนชิ้นงานทั้งหมด</div>
+                <div className="text-2xl font-black">{stats.total}</div>
+              </div>
+
+              {/* Preview SVG Container */}
+              <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                <div ref={captureRef} className="bg-white p-2">
+                  <svg
+                    width="100%"
+                    className="aspect-square max-h-[300px] sm:max-h-[400px]"
+                    viewBox={vb}
+                    preserveAspectRatio="xMidYMid meet"
+                  >
+                    {sheetMm.w > 0 && sheetMm.h > 0 && (
+                      <rect x={0} y={0} width={sheetMm.w} height={sheetMm.h} fill="transparent" stroke="#e2e8f0" />
+                    )}
+                    {layout.map((s, i) => (
+                      <rect
+                        key={i}
+                        x={s.x}
+                        y={s.y}
+                        width={s.width}
+                        height={s.height}
+                        fill="none"
+                        stroke={s.orientation === "horizontal" ? "#3b82f6" : "#22c55e"}
+                        strokeWidth={2}
+                      />
+                    ))}
+                  </svg>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={onCapture}
+                className="w-full rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white shadow-md active:scale-95 transition-transform"
+              >
+                แนบไปที่ Asana
+              </button>
             </div>
           </div>
-          {/* end body */}
         </div>
       </div>
+
+      {/* Success Message */}
+      {showSuccess && (
+        <div className="absolute inset-x-0 bottom-6 flex justify-center z-[70]">
+          <div className="rounded-full bg-green-600 px-6 py-2 text-sm font-bold text-white shadow-xl ">
+            แนบไฟล์ไปยัง Asana สำเร็จ
+          </div>
+        </div>
+      )}
     </div>
-  );
+  </div>
+);
 });
 
 export default Calc;
