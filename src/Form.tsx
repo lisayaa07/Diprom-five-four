@@ -10,8 +10,8 @@ import Printer from "./components/Printer";
 import SearchBox from "./components/Search_Box";
 import { useSearchParams } from "react-router-dom";
 import { API_BASE_URL } from "./config";
-import { PDFDownloadLink } from "@react-pdf/renderer";
-import MyPdfDocument from "./components/PDF";
+import PDFDownloadButton from "./components/PDFDownloadLink";
+
 
 type Project = { gid: string; name: string; resource_type?: string };
 type State<T> =
@@ -142,6 +142,8 @@ function Form(): JSX.Element {
   const [workType, setWorkType] = useState<string>("");
   const [detailsKey, setDetailsKey] = useState(0);
   const [resetKey, setResetKey] = useState(0);
+  const [createdNotes, setCreatedNotes] = useState<string>("");
+
 
   const resetForm = () => {
     setFormData({
@@ -410,8 +412,8 @@ function Form(): JSX.Element {
       }
 
       if (checked("bind_other")) {
-        const detail = getStr("bind_other_detail");
-        lines.push(detail ? `อื่นๆ: ${detail}` : "อื่นๆ");
+        const details = getStr("bind_other_detail");
+        lines.push(details ? `อื่นๆ: ${details}` : "อื่นๆ");
       }
 
       if (checked("bind_perforate")) {
@@ -466,10 +468,10 @@ function Form(): JSX.Element {
       if (printer.length > 0) lines.push(`เครื่องพิมพ์: ${printer.join(", ")}`);
 
       const notes = lines.join("\n");
+      console.log("notes",notes)
+      setCreatedNotes(notes);
 
-      // =========================
-      // 1) สร้าง Main Task (ในโปรเจกต์ที่เลือก)
-      // =========================
+    
       const createMainPayload = {
         data: {
           name: getStr("jobName"),
@@ -668,6 +670,8 @@ function Form(): JSX.Element {
       setSuccessMessage("ส่งใบสั่งพิมพ์สำเร็จ");
       setSuccessOpen(true);
       setResult("✅ สร้าง Task สำเร็จ\n\n" + JSON.stringify(mainJson, null, 2));
+
+     
     } catch (e2) {
       const msg = e2 instanceof Error ? e2.message : String(e2);
       setResult("❌ Error\n\n" + msg);
@@ -707,6 +711,7 @@ function Form(): JSX.Element {
 
           {projectsState.status === "success" && (
             <form
+            id="order-form"
               onSubmit={handleSubmit}
               encType="multipart/form-data"
               noValidate
@@ -1062,32 +1067,16 @@ function Form(): JSX.Element {
                         >
                           ตกลง
                         </button>
+                       <PDFDownloadButton
+                        formId="order-form"
+                        formData={formData}
+                        notes={createdNotes}
+                        fileName="order.pdf"
+                      />
 
-                        <PDFDownloadLink
-                          document={
-                            <MyPdfDocument
-                              customername={formData.fullName}
-                              phone={formData.phoneNumber}
-                              email={formData.email}
-                              companyName={formData.company}
-                              orderDate={formData.startDate}
-                              dueDate={formData.endDate}
-                              jobName={formData.jobName}
-                              line={formData.lineId}
-                              quantity={formData.quantity}
-                            />
-                          }
-                          fileName="user-info.pdf"
-                        >
-                          {({ loading }) => (
-                            <button
-                              type="button"
-                              className="rounded-xl bg-slate-700 px-4 py-2 text-sm text-white"
-                            >
-                              {loading ? "กำลังสร้าง PDF..." : "ดาวน์โหลด PDF"}
-                            </button>
-                          )}
-                        </PDFDownloadLink>
+
+
+                      
                       </div>
                     </div>
                   </div>
