@@ -11,6 +11,33 @@ import SearchBox from "./components/Search_Box";
 import { useSearchParams } from "react-router-dom";
 import { API_BASE_URL } from "./config";
 import PDFDownloadButton from "./components/PDFDownloadLink";
+import { useNavigate } from "react-router-dom";
+
+
+
+
+
+const TOKEN_KEY = "admin_token"; // ให้ตรงกับตอน login เก็บไว้
+type WorkTypeDoc = { _id: string; name_work: string };
+
+function getAuthHeaders(extra?: HeadersInit): HeadersInit {
+  const token = localStorage.getItem(TOKEN_KEY) || "";
+  return {
+    Accept: "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(extra as any),
+  };
+}
+
+async function fetchDbJsonOrThrow(input: RequestInfo | URL, init?: RequestInit) {
+  return await fetchJsonOrThrow(input, {
+    ...init,
+    headers: getAuthHeaders(init?.headers),
+  });
+}
+
+
+
 
 
 type Project = { gid: string; name: string; resource_type?: string };
@@ -20,6 +47,9 @@ type State<T> =
   | { status: "error"; data: null; error: string };
 
 const WORKSPACE_GID = import.meta.env.VITE_WORKSPACE_GID as string;
+
+// ✅ Mongo backend base url
+const DB_API_BASE_URL = import.meta.env.VITE_DB_API_BASE_URL as string;
 
 interface GridTask {
   data?: {
@@ -44,7 +74,6 @@ type AsanaAttachment = {
 const parseUploadAttachment = (j: unknown): AsanaAttachment | null => {
   if (!j || typeof j !== "object") return null;
 
-  // ✅ รองรับทั้ง {data:{...}} และ {...}
   const root = j as any;
   const data = root.data && typeof root.data === "object" ? root.data : root;
 
@@ -100,8 +129,64 @@ async function fetchJsonOrThrow(
       `HTTP ${res.status}\n${typeof json === "string" ? json : JSON.stringify(json, null, 2)}`,
     );
   }
+  if (json && typeof json === "object" && "ok" in json && (json as any).ok === false) {
+    throw new Error((json as any).error || "ok:false");
+  }
   return json;
 }
+
+// ✅ ช่วยดึง id ที่ backend ส่งกลับมา (รองรับหลาย shape)
+function pickId(obj: any): string | null {
+  return (
+    obj?._id ||
+    obj?.id ||
+    obj?.gid ||
+    obj?.data?._id ||
+    obj?.data?.id ||
+    obj?.data?.gid ||
+    obj?.company?._id ||
+    obj?.company?.id ||
+    null
+  );
+}
+
+// ✅ upsert/create company (customer)
+async function upsertCompany(payload: { company: string; tax?: string }) {
+  try {
+    return await fetchDbJsonOrThrow(`${DB_API_BASE_URL}/companies/upsert`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    return await fetchDbJsonOrThrow(`${DB_API_BASE_URL}/companies`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  }
+}
+
+
+// ✅ get order by id (แทน GAS getOrderById)
+// backend ควรมี GET /orders/:id
+async function getOrderById(orderId: string) {
+  return await fetchDbJsonOrThrow(
+    `${DB_API_BASE_URL}/orders/${encodeURIComponent(orderId)}`,
+    { method: "GET" },
+  );
+}
+
+
+// ✅ create order (ตาม swagger POST /orders)
+async function createOrder(payload: any) {
+  return await fetchDbJsonOrThrow(`${DB_API_BASE_URL}/orders`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
 
 function Form(): JSX.Element {
   const [projectsState, setProjectsState] = useState<State<Project[]>>({
@@ -121,18 +206,16 @@ function Form(): JSX.Element {
     lineId: "",
     address: "",
     extra: "",
-    jobName: "", // ชื่องาน -> ไปเป็น task name
-    quantity: "", // จำนวนสั่ง (เก็บไว้ใส่ notes)
-    startDate: "", // วันเริ่ม (date: YYYY-MM-DD)
-    endDate: "", // วันสิ้นสุด (date: YYYY-MM-DD)
+    jobName: "",
+    quantity: "",
+    startDate: "",
+    endDate: "",
   });
 
   const [files, setFiles] = useState<File[]>([]);
   const [, setResult] = useState<string>("");
   const [creating, setCreating] = useState<boolean>(false);
 
-  // NOTE: ยังใช้ component เดิม แต่จะ "ไม่สร้าง subtask" แล้ว
-  // จะสร้าง "Task ใหม่ในโปรเจกอื่น" แทน
   const [subtasks, setSubtasks] = useState<SubtaskDraft[]>([]);
 
   const [successOpen, setSuccessOpen] = useState(false);
@@ -143,7 +226,40 @@ function Form(): JSX.Element {
   const [detailsKey, setDetailsKey] = useState(0);
   const [resetKey, setResetKey] = useState(0);
   const [createdNotes, setCreatedNotes] = useState<string>("");
+  const [workTypes, setWorkTypes] = useState<WorkTypeDoc[]>([]);
+const [workTypesLoading, setWorkTypesLoading] = useState(false);
+const [, setWorkTypesError] = useState("");
 
+
+useEffect(() => {
+  const run = async () => {
+    try {
+      setWorkTypesLoading(true);
+      setWorkTypesError("");
+const json = await fetchDbJsonOrThrow(`${DB_API_BASE_URL}/type-works`, {
+  method: "GET",
+});
+
+const list = Array.isArray(json) ? json : (json?.data ?? []);
+const normalized = (Array.isArray(list) ? list : [])
+  .map((x: any) => ({
+    _id: String(x?._id ?? x?.id ?? ""),
+    name_work: String(x?.name_tw ?? x?.name_work ?? x?.name ?? "").trim(), // ✅ เพิ่ม name_tw
+  }))
+  .filter((x) => x._id && x.name_work);
+
+setWorkTypes(normalized);
+
+    } catch (e) {
+      setWorkTypesError(e instanceof Error ? e.message : String(e));
+      setWorkTypes([]);
+    } finally {
+      setWorkTypesLoading(false);
+    }
+  };
+
+  run();
+}, []);
 
   const resetForm = () => {
     setFormData({
@@ -172,7 +288,7 @@ function Form(): JSX.Element {
     setDetailsKey((prev) => prev + 1);
   };
 
-  // โหลด projects
+  // โหลด projects (Asana)
   useEffect(() => {
     const loadProjects = async () => {
       try {
@@ -190,9 +306,7 @@ function Form(): JSX.Element {
 
         const json = await safeReadJson(res);
         if (!res.ok) {
-          throw new Error(
-            `HTTP ${res.status}\n${JSON.stringify(json, null, 2)}`,
-          );
+          throw new Error(`HTTP ${res.status}\n${JSON.stringify(json, null, 2)}`);
         }
 
         const list = Array.isArray(json)
@@ -213,62 +327,40 @@ function Form(): JSX.Element {
 
   const [searchParams] = useSearchParams();
 
+  // ✅ โหลด order เดิมจาก Mongo (แทน GAS)
   useEffect(() => {
     const orderId = searchParams.get("order_id");
     if (!orderId) return;
 
     const run = async () => {
-      const GAS_URL =
-        "https://script.google.com/macros/s/AKfycbxyAK1Kqz8xPCOFdbUECiFQNMRcEMWhNoygkyV_Y0jVISpAcHjH3rGpAaZqqbE_sDVN5w/exec";
+      const json = await getOrderById(orderId);
 
-      const url = new URL(GAS_URL);
-      url.searchParams.set("action", "getOrderById");
-      url.searchParams.set("order_id", orderId);
+      // คาดหวัง shape: { ok:true, found:true, company:{...}, order:{...} }
+      if (!json?.found || !json?.order) return;
 
-      const res = await fetch(url.toString());
-      const json = (await safeReadJson(res)) as {
-        ok?: boolean;
-        found?: boolean;
-        user?: { tax?: string; companyName?: string } | null;
-        order?: {
-          customerName?: string;
-          phone?: string;
-          email?: string;
-          line?: string;
-          address?: string;
-          startDate?: string;
-          endDate?: string;
-          projectName?: string;
-          quantity?: string;
-          notes?: string;
-        };
-        error?: string;
-      };
-
-      if (!res.ok) throw new Error(`GAS HTTP ${res.status}\n${JSON.stringify(json, null, 2)}`);
-      if (json.ok === false) throw new Error(json.error || "GAS ok:false");
-      if (!json.found || !json.order) return;
+      const o = json.order;
 
       setFormData((prev) => ({
         ...prev,
-        tax_id: json.user?.tax ?? prev.tax_id,
-        company: json.user?.companyName ?? prev.company,
-        fullName: String(json.order?.customerName ?? ""),
-        phoneNumber: String(json.order?.phone ?? ""),
-        email: String(json.order?.email ?? ""),
-        lineId: String(json.order?.line ?? ""),
-        address: String(json.order?.address ?? ""),
-        jobName: String(json.order?.projectName ?? prev.jobName),
-        quantity: String(json.order?.quantity ?? ""),
-        startDate: String(json.order?.startDate ?? ""),
-        endDate: String(json.order?.endDate ?? ""),
-        extra: "",
+        tax_id: String(json.company?.tax ?? prev.tax_id),
+        company: String(json.company?.companyName ?? json.company?.company ?? prev.company),
+
+        fullName: String(o.customer_name ?? ""),
+        phoneNumber: String(o.phone ?? ""),
+        email: String(o.email ?? ""),
+        lineId: String(o.line ?? ""),
+        address: String(o.address ?? ""),
+        quantity: String(o.count_work ?? ""),
+        startDate: String(o.start_date ?? ""),
+        endDate: String(o.end_date ?? ""),
+        extra: String(o.detail_work ?? ""),
+        jobName: prev.jobName, // ถ้าคุณมี jobName ใน DB ก็ใส่เพิ่มได้
       }));
 
-      // ตั้ง selectedProject จาก "ชื่อโปรเจกต์" (เพราะในชีทเราเก็บเป็นชื่อ)
-      const projectName = String(json.order.projectName ?? "");
-      if (projectsState.status === "success" && projectName) {
-        const match = projectsState.data.find((p) => p.name === projectName);
+      // type_work ใน Mongo เป็น id ของโปรเจกต์
+      const typeWorkId = String(o.type_work ?? "");
+      if (projectsState.status === "success" && typeWorkId) {
+        const match = projectsState.data.find((p) => p.gid === typeWorkId);
         if (match) setSelectedProjectGid(match.gid);
       }
     };
@@ -279,8 +371,9 @@ function Form(): JSX.Element {
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-  ) => {
+     ) => {
     const { name, value } = e.target;
+    
 
     setFormData((prev) => {
       const next = { ...prev, [name]: value };
@@ -289,7 +382,9 @@ function Form(): JSX.Element {
         next.endDate = "";
       }
       return next;
+      
     });
+    
   };
 
   const validate = () => {
@@ -313,6 +408,7 @@ function Form(): JSX.Element {
       setFormError("กรุณากรอกข้อมูลให้ครบถ้วน");
       return false;
     }
+    
 
     setFormError("");
     return true;
@@ -439,7 +535,7 @@ function Form(): JSX.Element {
         if (rangeText) lines.push(`เลขที่ ${rangeText}`);
       }
 
-      // ดึงค่าจาก Details.tsx
+      // Details.tsx
       const detail = getStr("detail");
       const unit = getStr("unit");
       const size = getStr("size");
@@ -468,10 +564,9 @@ function Form(): JSX.Element {
       if (printer.length > 0) lines.push(`เครื่องพิมพ์: ${printer.join(", ")}`);
 
       const notes = lines.join("\n");
-      console.log("notes",notes)
       setCreatedNotes(notes);
 
-    
+      // ✅ 1) สร้าง Asana งานหลัก
       const createMainPayload = {
         data: {
           name: getStr("jobName"),
@@ -493,9 +588,7 @@ function Form(): JSX.Element {
       });
 
       const taskGid = getTaskGid(mainJson);
-      if (!taskGid) {
-        throw new Error("สร้าง Task แล้ว แต่ไม่ได้ taskGid (response shape ไม่ตรง)");
-      }
+      if (!taskGid) throw new Error("สร้าง Task แล้ว แต่ไม่ได้ taskGid (response shape ไม่ตรง)");
 
       const mainTaskInfoJson = await fetchJsonOrThrow(
         `${API_BASE_URL}/tasks/${taskGid}?opt_fields=gid,name,permalink_url`,
@@ -503,6 +596,7 @@ function Form(): JSX.Element {
       );
       const mainTaskInfo = normalizeAsanaTask(mainTaskInfoJson);
 
+      // ✅ 2) อัปโหลดไฟล์แนบ Asana + เก็บลิงก์
       const fileLinks: FileLink[] = [];
 
       if (files.length > 0) {
@@ -517,7 +611,6 @@ function Form(): JSX.Element {
 
           const upJson = await safeReadJson(upRes);
           if (!upRes.ok) {
-            
             fileLinks.push({ name: file.name, url: "" });
             continue;
           }
@@ -541,7 +634,7 @@ function Form(): JSX.Element {
         }
       }
 
-      
+      // อัปเดต notes เพิ่มไฟล์แนบใน Asana งานหลัก
       if (fileLinks.length > 0) {
         const linksText =
           "\n\nไฟล์แนบ:\n" + fileLinks.map((f) => `- ${f.name}: ${f.url || "-"}`).join("\n");
@@ -557,7 +650,7 @@ function Form(): JSX.Element {
         });
       }
 
-  
+      // ✅ 3) สร้าง subtasks (ของคุณตอนนี้ยังคงเป็น subtask จริง)
       const otherTasks: AsanaTaskMini[] = [];
       const mainRef =
         mainTaskInfo?.permalink_url
@@ -570,108 +663,90 @@ function Form(): JSX.Element {
             fileLinks.map((f) => `- ${f.name}: ${f.url || "-"}`).join("\n")
           : "";
 
-      
-     for (const row of subtasks ?? []) {
-  const pgid = String(row.projectGid ?? "").trim();
-  const nm = String(row.name ?? "").trim();
+      for (const row of subtasks ?? []) {
+        const pgid = String(row.projectGid ?? "").trim();
+        const nm = String(row.name ?? "").trim();
+        if (!pgid) continue;
 
-  // ถ้าไม่มี project gid หรือเป็นโปรเจกต์เดียวกับงานหลัก 
-  // (คุณสามารถเลือกได้ว่าจะข้าม หรือจะสร้าง subtask ในโปรเจกต์หลักเฉยๆ)
-  if (!pgid) continue; 
+        const taskName = nm || getStr("jobName");
 
-  const taskName = nm || getStr("jobName");
-
-  const createOtherPayload = {
-    data: {
-      name: taskName,
-      notes: notes + mainRef + attachText,
-      // ใส่โปรเจกต์เพื่อให้มันไปปรากฏในบอร์ดของโปรเจกต์อื่นด้วย
-      projects: [pgid], 
-      start_on: getStr("startDate"),
-      due_on: getStr("endDate"),
-    },
-  };
-
-  try {
-    // 🚩 จุดที่เปลี่ยน: เปลี่ยน URL เพื่อบอก Asana ว่านี่คือ Subtask ของ taskGid
-    const otherCreateJson = await fetchJsonOrThrow(
-      `${API_BASE_URL}/tasks/${taskGid}/subtasks`, // <-- เปลี่ยนตรงนี้
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          "X-Tunnel-Skip-AntiPhishing-Page": "True",
-        },
-        body: JSON.stringify(createOtherPayload),
-      }
-    );
-
-    const otherGid = getTaskGid(otherCreateJson);
-    if (!otherGid) continue;
-
-    const otherInfoJson = await fetchJsonOrThrow(
-      `${API_BASE_URL}/tasks/${otherGid}?opt_fields=gid,name,permalink_url`,
-      { headers: { Accept: "application/json", "X-Tunnel-Skip-AntiPhishing-Page": "True" } },
-    );
-
-    const otherInfo = normalizeAsanaTask(otherInfoJson);
-    if (otherInfo) otherTasks.push(otherInfo);
-  } catch (err) {
-    console.error("create subtask failed:", err);
-  }
-}
-
-    
-      const GAS_URL =
-        "https://script.google.com/macros/s/AKfycbxyAK1Kqz8xPCOFdbUECiFQNMRcEMWhNoygkyV_Y0jVISpAcHjH3rGpAaZqqbE_sDVN5w/exec";
-
-      const gasJson = await fetchJsonOrThrow(GAS_URL, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" }, 
-        body: JSON.stringify({
-          action: "saveOrder",
-          payload: {
-            user: {
-              tax: formData.tax_id,
-              companyName: formData.company,
-            },
-            order: {
-              customerName: formData.fullName,
-              phone: formData.phoneNumber,
-              email: formData.email,
-              line: formData.lineId,
-              address: formData.address,
-              startDate: formData.startDate,
-              endDate: formData.endDate,
-              projectName: selectedProject?.name ?? "",
-              quantity: formData.quantity,
-              notes,
-              files: JSON.stringify(fileLinks),
-
-              // ✅ เก็บข้อมูล task ไว้
-              mainTask: JSON.stringify(mainTaskInfo ?? { gid: taskGid }),
-              otherTasks: JSON.stringify(otherTasks),
-            },
+        const createOtherPayload = {
+          data: {
+            name: taskName,
+            notes: notes + mainRef + attachText,
+            projects: [pgid],
+            start_on: getStr("startDate"),
+            due_on: getStr("endDate"),
           },
-        }),
+        };
+
+        try {
+          const otherCreateJson = await fetchJsonOrThrow(
+            `${API_BASE_URL}/tasks/${taskGid}/subtasks`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+                "X-Tunnel-Skip-AntiPhishing-Page": "True",
+              },
+              body: JSON.stringify(createOtherPayload),
+            },
+          );
+
+          const otherGid = getTaskGid(otherCreateJson);
+          if (!otherGid) continue;
+
+          const otherInfoJson = await fetchJsonOrThrow(
+            `${API_BASE_URL}/tasks/${otherGid}?opt_fields=gid,name,permalink_url`,
+            { headers: { Accept: "application/json", "X-Tunnel-Skip-AntiPhishing-Page": "True" } },
+          );
+
+          const otherInfo = normalizeAsanaTask(otherInfoJson);
+          if (otherInfo) otherTasks.push(otherInfo);
+        } catch (err) {
+          console.error("create subtask failed:", err);
+        }
+      }
+
+      // ✅ 4) บันทึกลง MongoDB (แทน GAS saveOrder)
+      // 4.1 upsert/create company
+      const compJson = await upsertCompany({
+        company: formData.company.trim(),
+        tax: formData.tax_id.trim() ? formData.tax_id.trim() : undefined,
       });
 
+      const companyId = pickId(compJson);
+      if (!companyId) throw new Error("ไม่พบ id_company ที่ได้จาก /companies");
 
-      if (
-        typeof gasJson === "object" &&
-        gasJson !== null &&
-        "ok" in (gasJson as any) &&
-        (gasJson as any).ok === false
-      ) {
-        throw new Error(`GAS ok:false\n${JSON.stringify(gasJson, null, 2)}`);
-      }
+      // 4.2 create order ตาม swagger
+      // หมายเหตุ: swagger file เป็น string, ถ้าหลายไฟล์ให้รวมเป็นข้อความ
+      const fileText =
+        fileLinks.length > 0
+          ? fileLinks.map((f) => `${f.name}: ${f.url || "-"}`).join("\n")
+          : "";
+
+      await createOrder({
+        id_company: companyId,
+        customer_name: formData.fullName,
+        phone: formData.phoneNumber,
+        email: formData.email,
+        line: formData.lineId,
+        address: formData.address,
+        start_date: formData.startDate,
+        end_date: formData.endDate,
+        type_work: selectedProjectGid,
+        count_work: Number(formData.quantity || 0),
+        detail_work: notes, // ✅ เก็บ notes ทั้งหมดลง detail_work เลย (คอนเซปเดิม)
+        file: fileText,     // ✅ ตาม swagger เป็น string
+        // ถ้าคุณอยากเก็บ task ลง DB ด้วยจริง ๆ ต้องให้ backend รองรับ field เพิ่ม
+        // mainTask: mainTaskInfo ?? { gid: taskGid },
+        // otherTasks,
+      });
 
       setSuccessMessage("ส่งใบสั่งพิมพ์สำเร็จ");
       setSuccessOpen(true);
-      setResult("✅ สร้าง Task สำเร็จ\n\n" + JSON.stringify(mainJson, null, 2));
-
-     
+      setResult("✅ สำเร็จ");
     } catch (e2) {
       const msg = e2 instanceof Error ? e2.message : String(e2);
       setResult("❌ Error\n\n" + msg);
@@ -685,9 +760,37 @@ function Form(): JSX.Element {
   const showPasansee = workType === "ฏีกา" || workType === "หนังสือ" || workType === "อื่นๆ";
   const showBinding = workType === "ฏีกา" || workType === "หนังสือ" || workType === "อื่นๆ";
 
+  const navigate = useNavigate();
+
+const handleLogout = () => {
+  // แบบใช้ฟังก์ชัน
+  // clearToken();
+
+  // หรือแบบลบ key ตรง ๆ
+  localStorage.removeItem("admin_token"); // ถ้าคุณใช้ localStorage
+  // sessionStorage.removeItem("admin_token"); // ถ้าคุณเปลี่ยนไปใช้ sessionStorage
+
+  navigate("/admin/login", { replace: true });
+};
+
+
   return (
     <>
       <div className="min-h-screen text-slate-900">
+        <header className="mx-auto max-w-3xl px-4 py-10">
+  <div className="flex items-center justify-between">
+
+
+    <button
+      type="button"
+      onClick={handleLogout}
+      className="ml-4 shrink-0 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50"
+    >
+      ออกจากระบบ
+    </button>
+  </div>
+</header>
+
         <header className="mx-auto max-w-3xl px-4 py-10 text-center text-4xl">
           <h2>ใบสั่งพิมพ์งาน</h2>
         </header>
@@ -711,7 +814,7 @@ function Form(): JSX.Element {
 
           {projectsState.status === "success" && (
             <form
-            id="order-form"
+              id="order-form"
               onSubmit={handleSubmit}
               encType="multipart/form-data"
               noValidate
@@ -722,6 +825,11 @@ function Form(): JSX.Element {
                   {formError}
                 </div>
               )}
+
+              {/* ===== UI เดิมของคุณ (ยาว) ===== */}
+              {/* ✅ ส่วน UI ที่เหลือเหมือนเดิมทั้งหมด */}
+              {/* ผม “ไม่แก้ UI” เพื่อให้คุณแทนไฟล์ได้ตรง ๆ */}
+              {/* ===== เริ่ม UI ของคุณ ===== */}
 
               <div className="w-full bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="border border-slate-200 rounded-2xl ">
@@ -984,28 +1092,36 @@ function Form(): JSX.Element {
                     </div>
 
                     <div className="text-sm font-medium text-slate-800">
-                      <label>ประเภทงาน</label>
-                      <select
-                        value={workType}
-                        onChange={(e) => setWorkType(e.target.value)}
-                        className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900"
-                      >
-                        <option value="" disabled>
-                          เลือกประเภทงาน
-                        </option>
-                        <option value="การ์ด">การ์ด</option>
-                        <option value="ฏีกา">ฏีกา</option>
-                        <option value="นามบัตร">นามบัตร</option>
-                        <option value="โปสเตอร์">โปสเตอร์</option>
-                        <option value="ใบปลิว">ใบปลิว</option>
-                        <option value="แผ่นพับ">แผ่นพับ</option>
-                        <option value="หนังสือ">หนังสือ</option>
-                        <option value="อื่นๆ">อื่นๆ</option>
-                      </select>
-                    </div>
+  <label>ประเภทงาน</label>
+
+  {!workTypesLoading && workTypes.length === 0 && (
+  <option value="" disabled>
+    ไม่มีประเภทงานในระบบ
+  </option>
+)}
+
+
+  <select
+    value={workType}
+    onChange={(e) => setWorkType(e.target.value)}
+    disabled={workTypesLoading || workTypes.length === 0}
+    className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900 disabled:opacity-60"
+  >
+    <option value="" disabled>
+      {workTypesLoading ? "กำลังโหลด..." : "เลือกประเภทงาน"}
+    </option>
+
+    {workTypes.map((t) => (
+      <option key={t._id} value={t.name_work}>
+        {t.name_work}
+      </option>
+    ))}
+  </select>
+</div>
+
+
                   </div>
 
-                  {/* ✅ ยังใช้ UI เดิม แต่ผลลัพธ์จะ "สร้าง Task ในโปรเจกอื่น" แทน subtask */}
                   <Subtask
                     projects={projectsState.status === "success" ? projectsState.data : []}
                     value={subtasks}
@@ -1031,7 +1147,6 @@ function Form(): JSX.Element {
                 </div>
               </div>
 
-              {/* ปุ่มส่ง */}
               <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 pb-10 disabled:opacity-50 disabled:cursor-not-allowed">
                 <div className="flex justify-end">
                   <button
@@ -1067,16 +1182,13 @@ function Form(): JSX.Element {
                         >
                           ตกลง
                         </button>
-                       <PDFDownloadButton
-                        formId="order-form"
-                        formData={formData}
-                        notes={createdNotes}
-                        fileName="order.pdf"
-                      />
 
-
-
-                      
+                        <PDFDownloadButton
+                          formId="order-form"
+                          formData={formData}
+                          notes={createdNotes}
+                          fileName="order.pdf"
+                        />
                       </div>
                     </div>
                   </div>

@@ -60,13 +60,13 @@ function parseFileLinks(raw: string): FileLink[] {
 const GAS_URL =
   "https://script.google.com/macros/s/AKfycbxyAK1Kqz8xPCOFdbUECiFQNMRcEMWhNoygkyV_Y0jVISpAcHjH3rGpAaZqqbE_sDVN5w/exec";
 
-function pickLine(notes: string, label: string): string {
+  function pickLine(notes: string, label: string): string {
   const re = new RegExp(`^${label}\\s*:\\s*(.*)$`, "m");
   const m = notes.match(re);
   return m?.[1]?.trim() ?? "";
-}
+  }
 
-function removeDuplicateLines(notes: string): string {
+  function removeDuplicateLines(notes: string): string {
   const dropPrefixes = [
     "ชื่อ:", "ประเภท:","ประเภทงาน:", "เบอร์โทร:", "อีเมล:", "Line:", "ที่อยู่:",
     "ชื่องาน:", "จำนวนสั่ง:", "วันเริ่ม:", "วันสิ้นสุด:",
