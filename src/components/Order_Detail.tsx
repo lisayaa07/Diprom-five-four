@@ -1,6 +1,8 @@
 import  { useEffect, useMemo, useState, type JSX } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { PDFDownloadLink,PDFViewer } from '@react-pdf/renderer';
+import { dbFetchJson } from "../lib/dbClient"; // ✅ ปรับ path ให้ตรงโปรเจกต์
+
 import MyPdfDocument from './PDF';
 type GasOrderDetailResp = {
   ok: boolean;
@@ -57,8 +59,7 @@ function parseFileLinks(raw: string): FileLink[] {
 }
 
 
-const GAS_URL =
-  "https://script.google.com/macros/s/AKfycbxyAK1Kqz8xPCOFdbUECiFQNMRcEMWhNoygkyV_Y0jVISpAcHjH3rGpAaZqqbE_sDVN5w/exec";
+
 
   function pickLine(notes: string, label: string): string {
   const re = new RegExp(`^${label}\\s*:\\s*(.*)$`, "m");
@@ -89,36 +90,70 @@ export default function Order_Detail(): JSX.Element {
   const [data, setData] = useState<GasOrderDetailResp | null>(null);
 
   useEffect(() => {
-    if (!orderId) return;
+  if (!orderId) return;
 
-    const run = async () => {
-      setLoading(true);
-      setErr("");
-      setData(null);
+  const run = async () => {
+    setLoading(true);
+    setErr("");
+    setData(null);
 
-      try {
-        const url = new URL(GAS_URL);
-        url.searchParams.set("action", "getOrderById");
-        url.searchParams.set("order_id", orderId);
+    try {
+      // ✅ ดึง order จาก Mongo
+      const json = await dbFetchJson<any>(`/orders/${encodeURIComponent(orderId)}`, {
+        method: "GET",
+      });
 
-        const res = await fetch(url.toString());
-        const text = await res.text();
-        const json = JSON.parse(text) as GasOrderDetailResp;
+      // รองรับทั้ง {data:...} หรือ {...}
+      const order = json?.data ?? json;
+      if (!order) throw new Error("ไม่พบงานนี้ในระบบ");
 
-        if (!res.ok) throw new Error(`HTTP ${res.status}\n${text}`);
-        if (!json.ok) throw new Error(json.error || "GAS ok:false");
-        if (!json.found) throw new Error("ไม่พบงานนี้ในระบบ");
-
-        setData(json);
-      } catch (e) {
-        setErr(e instanceof Error ? e.message : String(e));
-      } finally {
-        setLoading(false);
+      // ✅ ดึง company เพิ่ม (ถ้า backend มี /companies/:id)
+      let company: any = null;
+      const companyId = String(order?.id_company ?? order?.company ?? "");
+      if (companyId) {
+        try {
+          const cJson = await dbFetchJson<any>(`/companies/${encodeURIComponent(companyId)}`, {
+            method: "GET",
+          });
+          company = cJson?.data ?? cJson;
+        } catch {
+          // ถ้า backend ไม่มี endpoint นี้ ก็ไม่เป็นไร
+        }
       }
-    };
 
-    run();
-  }, [orderId]);
+      // ✅ สร้าง shape ให้ใกล้ของเดิม เพื่อไม่ต้องแก้ UI เยอะ
+      setData({
+        ok: true,
+        found: true,
+        user: {
+          tax: String(company?.tax ?? ""),
+          companyName: String(company?.companyName ?? company?.company ?? ""),
+        },
+        order: {
+          ID_Order: String(order?._id ?? order?.id ?? orderId),
+          customerName: String(order?.customer_name ?? ""),
+          phone: String(order?.phone ?? ""),
+          email: String(order?.email ?? ""),
+          line: String(order?.line ?? ""),
+          address: String(order?.address ?? ""),
+          startDate: String(order?.start_date ?? ""),
+          endDate: String(order?.end_date ?? ""),
+          projectName: String(order?.type_work ?? ""), // จะโชว์ id หรือชื่อแล้วแต่คุณอยาก map
+          quantity: String(order?.count_work ?? ""),
+          notes: String(order?.detail_work ?? ""),
+          files: String(order?.file ?? ""),
+        },
+      });
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  run();
+}, [orderId]);
+
 
    function extractNoteValue(notes: string, label: string): string {
   if (!notes) return "-";

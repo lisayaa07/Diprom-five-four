@@ -1,62 +1,54 @@
 import { useEffect, useState, type JSX } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
+import { dbFetchJson } from "../lib/dbClient"; //
 
-
-type GasSearchResp = {
-  ok: boolean;
-  found?: boolean;
-  users?: Array<{
-    ID_User: string;
-    tax: string;
-    ชื่อบริษัท: string;
-    จำนวนครั้งที่เคยใช้บริการ: number;
-  }>;
-
-  ordersByUser?: Record<
-    string,
-    Array<{
-      ID_Order: string;
-      ประเภทงาน: string;
-      วันรับงาน: string;
-      วันส่งงาน: string;
-      จำนวนสั่ง: string;
-      รายละเอียดงานทั้งหมด?: string;
-      ไฟล์?: string;
-    }>
-  >;
-
-  error?: string;
-};
 type FileLink = { name: string; url: string };
+
+// ---------- helpers ----------
 function pickJobName(notes: string): string {
-  const re = /^ชื่องาน\s*:\s*(.*)$/m; // ค้นหาบรรทัดที่ขึ้นต้นด้วย ชื่องาน:
+  const re = /^ชื่องาน\s*:\s*(.*)$/m;
   const m = notes.match(re);
-  return m?.[1]?.trim() ?? ""; // ถ้าเจอให้คืนค่าข้อความหลังเครื่องหมาย :
+  return m?.[1]?.trim() ?? "";
 }
 
 function parseFileLinks(raw: string): FileLink[] {
   const s = (raw || "").trim();
   if (!s) return [];
 
-  // ✅ รูปแบบใหม่: JSON string จาก fileLinks
+  // 1) JSON string: [{"name":"..","url":".."}]
   try {
     const j = JSON.parse(s) as unknown;
     if (Array.isArray(j)) {
       return j
         .map((x) => {
           if (!x || typeof x !== "object") return null;
-          const name = (x as { name?: unknown }).name;
-          const url = (x as { url?: unknown }).url;
+          const name = (x as any).name;
+          const url = (x as any).url;
           if (typeof name !== "string") return null;
           return { name, url: typeof url === "string" ? url : "" };
         })
-        .filter((x): x is FileLink => x !== null);
+        .filter(Boolean) as FileLink[];
     }
   } catch {
     // ignore
   }
 
-  // ✅ fallback (ข้อมูลเก่า): ชื่อไฟล์คั่นด้วย comma
+  // 2) "name: url" ต่อบรรทัด
+  if (s.includes("\n") && s.includes(":")) {
+    return s
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const idx = line.indexOf(":");
+        if (idx < 0) return { name: line, url: "" };
+        const name = line.slice(0, idx).trim();
+        const url = line.slice(idx + 1).trim();
+        return { name, url };
+      });
+  }
+
+  // 3) fallback "a.pdf, b.ai"
   return s
     .split(",")
     .map((x) => x.trim())
@@ -64,18 +56,158 @@ function parseFileLinks(raw: string): FileLink[] {
     .map((name) => ({ name, url: "" }));
 }
 
-const GAS_URL =
-  "https://script.google.com/macros/s/AKfycbxyAK1Kqz8xPCOFdbUECiFQNMRcEMWhNoygkyV_Y0jVISpAcHjH3rGpAaZqqbE_sDVN5w/exec";
+const dateOnly = (v: any) => {
+  const s = String(v || "").trim();
+  const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+  return m ? m[1] : (s || "-");
+};
 
-export default function Searh_User(): JSX.Element {
+// ---------- Mongo types (ยืดหยุ่น) ----------
+type CompanyDoc = {
+  _id: string;
+  company?: string;        // ชื่อบริษัท
+  companyName?: string;    // บาง backend ใช้ชื่อ field นี้
+  tax?: string;
+  count?: number;          // จำนวนครั้งที่เคยใช้บริการ (อาจชื่ออื่น)
+  count_use?: number;
+  count_service?: number;
+};
+
+type OrderDoc = {
+  _id: string;
+  id_company?: string;
+  type_work?: string;
+  start_date?: string;
+  end_date?: string;
+  count_work?: number;
+  detail_work?: string;
+  file?: string;
+};
+
+// ---------- API helpers ----------
+async function fetchCompanies(): Promise<CompanyDoc[]> {
+  // พยายามเรียกแบบ "ได้ list"
+  const json = await dbFetchJson<any>("/companies", { method: "GET" });
+  const list = Array.isArray(json) ? json : (json?.data ?? []);
+  return (Array.isArray(list) ? list : [])
+    .map((x: any) => ({
+      _id: String(x?._id ?? x?.id ?? ""),
+      company: String(x?.company ?? "").trim(),
+      companyName: String(x?.companyName ?? "").trim(),
+      tax: String(x?.tax ?? "").trim(),
+      count: typeof x?.count === "number" ? x.count : undefined,
+      count_use: typeof x?.count_use === "number" ? x.count_use : undefined,
+      count_service: typeof x?.count_service === "number" ? x.count_service : undefined,
+    }))
+    .filter((x) => x._id);
+}
+
+async function searchCompaniesByCompanyName(q: string): Promise<CompanyDoc[]> {
+  const s = q.trim().toLowerCase();
+  if (!s) return [];
+
+  // ✅ ถ้า backend รองรับ query search ให้ลองก่อน
+  const candidates = [
+    `/companies/search?q=${encodeURIComponent(q)}`,
+    `/companies?q=${encodeURIComponent(q)}`,
+    `/companies?search=${encodeURIComponent(q)}`,
+    `/companies?company=${encodeURIComponent(q)}`,
+  ];
+
+  for (const path of candidates) {
+    try {
+      const json = await dbFetchJson<any>(path, { method: "GET" });
+      const list = Array.isArray(json) ? json : (json?.data ?? []);
+      const normalized = (Array.isArray(list) ? list : [])
+        .map((x: any) => ({
+          _id: String(x?._id ?? x?.id ?? ""),
+          company: String(x?.company ?? "").trim(),
+          companyName: String(x?.companyName ?? "").trim(),
+          tax: String(x?.tax ?? "").trim(),
+          count: typeof x?.count === "number" ? x.count : undefined,
+          count_use: typeof x?.count_use === "number" ? x.count_use : undefined,
+          count_service: typeof x?.count_service === "number" ? x.count_service : undefined,
+        }))
+        .filter((x) => x._id);
+
+      // ถ้าได้ผลลัพธ์จริง ให้ใช้เลย
+      if (normalized.length > 0) return normalized;
+    } catch {
+      // ignore แล้วไป fallback
+    }
+  }
+
+  // ✅ fallback: ดึงทั้งหมดแล้ว filter เอง
+  const all = await fetchCompanies();
+  return all.filter((c) => {
+    const name = (c.companyName || c.company || "").toLowerCase();
+    return name.includes(s);
+  });
+}
+
+async function fetchOrdersByCompanyId(companyId: string): Promise<OrderDoc[]> {
+  if (!companyId) return [];
+
+  // ✅ ลอง endpoint ที่น่ามี
+  const candidates = [
+    `/orders?company=${encodeURIComponent(companyId)}`,
+    `/orders?id_company=${encodeURIComponent(companyId)}`,
+    `/orders/company/${encodeURIComponent(companyId)}`,
+  ];
+
+  for (const path of candidates) {
+    try {
+      const json = await dbFetchJson<any>(path, { method: "GET" });
+      const list = Array.isArray(json) ? json : (json?.data ?? []);
+      const normalized = (Array.isArray(list) ? list : [])
+        .map((x: any) => ({
+          _id: String(x?._id ?? x?.id ?? ""),
+          id_company: String(x?.id_company ?? x?.company ?? x?.idCompany ?? ""),
+          type_work: String(x?.type_work ?? x?.typeWork ?? ""),
+          start_date: String(x?.start_date ?? x?.startDate ?? ""),
+          end_date: String(x?.end_date ?? x?.endDate ?? ""),
+          count_work: typeof x?.count_work === "number" ? x.count_work : Number(x?.count_work ?? 0),
+          detail_work: String(x?.detail_work ?? x?.notes ?? ""),
+          file: String(x?.file ?? x?.files ?? ""),
+        }))
+        .filter((x) => x._id);
+
+      // ถ้าได้ผลลัพธ์จริง ให้ใช้เลย
+      if (normalized.length >= 0) return normalized;
+    } catch {
+      // ignore แล้วไป fallback
+    }
+  }
+
+  // ✅ fallback: ดึง orders ทั้งหมดแล้ว filter เอง
+  const allJson = await dbFetchJson<any>("/orders", { method: "GET" });
+  const allList = Array.isArray(allJson) ? allJson : (allJson?.data ?? []);
+  const all = (Array.isArray(allList) ? allList : [])
+    .map((x: any) => ({
+      _id: String(x?._id ?? x?.id ?? ""),
+      id_company: String(x?.id_company ?? x?.company ?? x?.idCompany ?? ""),
+      type_work: String(x?.type_work ?? x?.typeWork ?? ""),
+      start_date: String(x?.start_date ?? x?.startDate ?? ""),
+      end_date: String(x?.end_date ?? x?.endDate ?? ""),
+      count_work: typeof x?.count_work === "number" ? x.count_work : Number(x?.count_work ?? 0),
+      detail_work: String(x?.detail_work ?? x?.notes ?? ""),
+      file: String(x?.file ?? x?.files ?? ""),
+    }))
+    .filter((x) => x._id);
+
+  return all.filter((o) => o.id_company === companyId);
+}
+
+// ---------- Component ----------
+export default function Search_User(): JSX.Element {
   const [params] = useSearchParams();
   const nav = useNavigate();
   const q = (params.get("q") || "").trim();
 
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string>("");
-  const [data, setData] = useState<GasSearchResp | null>(null);
-
+  const [companies, setCompanies] = useState<CompanyDoc[]>([]);
+  const [ordersByCompany, setOrdersByCompany] = useState<Record<string, OrderDoc[]>>({});
 
   useEffect(() => {
     if (!q) return;
@@ -83,21 +215,18 @@ export default function Searh_User(): JSX.Element {
     const run = async () => {
       setLoading(true);
       setErr("");
-      setData(null);
+      setCompanies([]);
+      setOrdersByCompany({});
 
       try {
-        const url = new URL(GAS_URL);
-        url.searchParams.set("action", "searchByCompany");
-        url.searchParams.set("q", q);
+        const comps = await searchCompaniesByCompanyName(q);
+        setCompanies(comps);
 
-        const res = await fetch(url.toString());
-        const text = await res.text();
-        const json = JSON.parse(text) as GasSearchResp;
-
-        if (!res.ok) throw new Error(`HTTP ${res.status}\n${text}`);
-        if (!json.ok) throw new Error(json.error || "GAS ok:false");
-
-        setData(json);
+        const map: Record<string, OrderDoc[]> = {};
+        for (const c of comps) {
+          map[c._id] = await fetchOrdersByCompanyId(c._id);
+        }
+        setOrdersByCompany(map);
       } catch (e) {
         setErr(e instanceof Error ? e.message : String(e));
       } finally {
@@ -107,13 +236,8 @@ export default function Searh_User(): JSX.Element {
 
     run();
   }, [q]);
-const dateOnly = (v: any) => {
-  const s = String(v || "").trim();
-  const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
-  return m ? m[1] : (s || "-");
-};
+
   return (
-    
     <div className="mx-auto max-w-3xl space-y-4 px-4 py-6">
       <div className="flex items-center justify-between">
         <div className="text-lg font-semibold">ประวัติลูกค้า</div>
@@ -142,56 +266,49 @@ const dateOnly = (v: any) => {
         </div>
       )}
 
-      {data?.found === false && (
+      {!loading && !err && companies.length === 0 && (
         <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm">
           ไม่พบข้อมูล
         </div>
       )}
 
-      {data?.users?.map((u) => {
-        const orders = data.ordersByUser?.[u.ID_User] ?? [];
+      {companies.map((c) => {
+        const name = c.companyName || c.company || "-";
+        const count =
+          c.count_service ?? c.count_use ?? c.count ?? 0;
+
+        const orders = ordersByCompany[c._id] ?? [];
+
         return (
-          <div
-            key={u.ID_User}
-            className="rounded-xl border border-slate-200 bg-white p-4"
-          >
-            <div className="font-semibold">{u.ชื่อบริษัท}</div>
+          <div key={c._id} className="rounded-xl border border-slate-200 bg-white p-4">
+            <div className="font-semibold">{name}</div>
             <div className="text-xs text-slate-600">
-              tax: {u.tax || "-"} • ใช้บริการแล้ว{" "}
-              {u.จำนวนครั้งที่เคยใช้บริการ || 0} ครั้ง
+              tax: {c.tax || "-"} • ใช้บริการแล้ว {count} ครั้ง
             </div>
 
             <div className="mt-3 text-sm font-medium">รายการงาน</div>
-              {orders.length === 0 ? (
-                <div className="mt-2 text-sm text-slate-600">
-                  ยังไม่มีรายการงาน
-                </div>
-              ) : (
-                <ul className="mt-2 space-y-2">
+
+            {orders.length === 0 ? (
+              <div className="mt-2 text-sm text-slate-600">ยังไม่มีรายการงาน</div>
+            ) : (
+              <ul className="mt-2 space-y-2">
                 {orders.map((o) => (
-                  <li key={o.ID_Order}>
+                  <li key={o._id}>
                     <button
                       type="button"
-                      onClick={() =>
-                        nav(`/order/${encodeURIComponent(o.ID_Order)}`)
-                      }
+                      onClick={() => nav(`/order/${encodeURIComponent(o._id)}`)}
                       className="w-full rounded-lg border border-slate-200 px-3 py-2 text-left hover:bg-slate-50"
                     >
                       <div className="font-medium">
-                        {pickJobName(o.รายละเอียดงานทั้งหมด || "") || o.ประเภทงาน || "(ไม่ระบุชื่องาน)"}
-                        
-                      </div>
-                      <div className="text-xs text-slate-600">
-                        รับงาน: {dateOnly(o.วันรับงาน)} • ส่งงาน: {dateOnly(o.วันส่งงาน)}
+                        {pickJobName(o.detail_work || "") || o.type_work || "(ไม่ระบุชื่องาน)"}
                       </div>
 
-                      <div className="mt-1 text-xs text-slate-600">
-                        
-                          </div>
-                                            
-                     
+                      <div className="text-xs text-slate-600">
+                        รับงาน: {dateOnly(o.start_date)} • ส่งงาน: {dateOnly(o.end_date)}
+                      </div>
+
                       {(() => {
-                        const fileLinks = parseFileLinks(o.ไฟล์ ?? "");
+                        const fileLinks = parseFileLinks(o.file ?? "");
                         if (fileLinks.length === 0) return null;
 
                         return (
@@ -201,16 +318,15 @@ const dateOnly = (v: any) => {
                               {fileLinks.map((f, i) => (
                                 <li key={`${f.name}-${i}`}>
                                   {f.url ? (
-                                   <a
+                                    <a
                                       href={f.url}
                                       target="_blank"
                                       rel="noreferrer"
                                       className="underline"
-                                      onClick={(e) => e.stopPropagation()}  // ✅ สำคัญ
+                                      onClick={(e) => e.stopPropagation()}
                                     >
                                       {f.name}
                                     </a>
-
                                   ) : (
                                     <span>{f.name}</span>
                                   )}
@@ -220,7 +336,6 @@ const dateOnly = (v: any) => {
                           </div>
                         );
                       })()}
-                      
                     </button>
                   </li>
                 ))}
