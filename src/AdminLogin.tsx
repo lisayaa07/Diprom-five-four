@@ -2,18 +2,8 @@
 import React, { useState, type FormEvent, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { setToken, getRole, isLoggedIn } from "./lib/Auth";
+import axiosInstance from "./lib/axios";
 
-const DB_API_BASE_URL = import.meta.env.VITE_DB_API_BASE_URL as string;
-
-async function safeReadJson(res: Response) {
-  const text = await res.text();
-  if (!text) return null;
-  try {
-    return JSON.parse(text);
-  } catch {
-    return { raw: text };
-  }
-}
 
 export default function AdminLogin() {
   const nav = useNavigate();
@@ -36,24 +26,16 @@ export default function AdminLogin() {
     try {
       setSubmitting(true);
 
-      const res = await fetch(`${DB_API_BASE_URL}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({
-          user_name: userName.trim(), // ✅ สำคัญ
-          password: password,
-        }),
-      });
+      const res = await axiosInstance.post("/auth/login",{
+        user_name: userName.trim(), // ✅ สำคัญ
+        password: password,
 
-      const json = await safeReadJson(res);
-      if (!res.ok) throw new Error(`DB HTTP ${res.status}\n${JSON.stringify(json, null, 2)}`);
+      })
 
-      const token =
-        json?.access_token || json?.token || json?.data?.access_token || json?.data?.token;
+      const token = res.data?.access_token || res.data?.token || res.data?.data?.access_token || res.data?.data?.token;
+       if (!token) throw new Error("Login สำเร็จแต่ไม่พบ token ใน response");
+       setToken(token);
 
-      if (!token) throw new Error("Login สำเร็จแต่ไม่พบ token ใน response");
-
-      setToken(token);
 
       const role = getRole();
       nav(role === "SuperAdmin" ? "/super-admin" : "/form", { replace: true });

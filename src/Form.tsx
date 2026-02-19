@@ -1,5 +1,5 @@
 import React, { useEffect, useState, type FormEvent, type JSX } from "react";
-
+import { User, ReceiptText } from "lucide-react";
 import Paper_used from "./components/Paper_used";
 import Pasansee from "./components/Pasansee";
 import Binding from "./components/Binding";
@@ -12,10 +12,7 @@ import { useSearchParams } from "react-router-dom";
 import { API_BASE_URL } from "./config";
 import PDFDownloadButton from "./components/PDFDownloadLink";
 import { useNavigate } from "react-router-dom";
-
-
-
-
+import Detail_Type from "./components/Detail_Type";
 
 const TOKEN_KEY = "admin_token"; // ให้ตรงกับตอน login เก็บไว้
 type WorkTypeDoc = { _id: string; name_work: string };
@@ -29,16 +26,15 @@ function getAuthHeaders(extra?: HeadersInit): HeadersInit {
   };
 }
 
-async function fetchDbJsonOrThrow(input: RequestInfo | URL, init?: RequestInit) {
+async function fetchDbJsonOrThrow(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+) {
   return await fetchJsonOrThrow(input, {
     ...init,
     headers: getAuthHeaders(init?.headers),
   });
 }
-
-
-
-
 
 type Project = { gid: string; name: string; resource_type?: string };
 type State<T> =
@@ -49,7 +45,7 @@ type State<T> =
 const WORKSPACE_GID = import.meta.env.VITE_WORKSPACE_GID as string;
 
 // ✅ Mongo backend base url
-const DB_API_BASE_URL = import.meta.env.VITE_DB_API_BASE_URL as string;
+const DB_API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
 
 interface GridTask {
   data?: {
@@ -86,7 +82,8 @@ const parseUploadAttachment = (j: unknown): AsanaAttachment | null => {
   return {
     gid,
     name,
-    permanent_url: typeof permanent_url === "string" ? permanent_url : undefined,
+    permanent_url:
+      typeof permanent_url === "string" ? permanent_url : undefined,
   };
 };
 
@@ -129,7 +126,12 @@ async function fetchJsonOrThrow(
       `HTTP ${res.status}\n${typeof json === "string" ? json : JSON.stringify(json, null, 2)}`,
     );
   }
-  if (json && typeof json === "object" && "ok" in json && (json as any).ok === false) {
+  if (
+    json &&
+    typeof json === "object" &&
+    "ok" in json &&
+    (json as any).ok === false
+  ) {
     throw new Error((json as any).error || "ok:false");
   }
   return json;
@@ -167,7 +169,6 @@ async function upsertCompany(payload: { company: string; tax?: string }) {
   }
 }
 
-
 // ✅ get order by id (แทน GAS getOrderById)
 // backend ควรมี GET /orders/:id
 async function getOrderById(orderId: string) {
@@ -177,7 +178,6 @@ async function getOrderById(orderId: string) {
   );
 }
 
-
 // ✅ create order (ตาม swagger POST /orders)
 async function createOrder(payload: any) {
   return await fetchDbJsonOrThrow(`${DB_API_BASE_URL}/orders`, {
@@ -186,7 +186,6 @@ async function createOrder(payload: any) {
     body: JSON.stringify(payload),
   });
 }
-
 
 function Form(): JSX.Element {
   const [projectsState, setProjectsState] = useState<State<Project[]>>({
@@ -227,39 +226,39 @@ function Form(): JSX.Element {
   const [resetKey, setResetKey] = useState(0);
   const [createdNotes, setCreatedNotes] = useState<string>("");
   const [workTypes, setWorkTypes] = useState<WorkTypeDoc[]>([]);
-const [workTypesLoading, setWorkTypesLoading] = useState(false);
-const [, setWorkTypesError] = useState("");
+  const [workTypesLoading, setWorkTypesLoading] = useState(false);
+  const [, setWorkTypesError] = useState("");
 
+  useEffect(() => {
+    const run = async () => {
+      try {
+        setWorkTypesLoading(true);
+        setWorkTypesError("");
+        const json = await fetchDbJsonOrThrow(`${DB_API_BASE_URL}/type-works`, {
+          method: "GET",
+        });
 
-useEffect(() => {
-  const run = async () => {
-    try {
-      setWorkTypesLoading(true);
-      setWorkTypesError("");
-const json = await fetchDbJsonOrThrow(`${DB_API_BASE_URL}/type-works`, {
-  method: "GET",
-});
+        const list = Array.isArray(json) ? json : (json?.data ?? []);
+        const normalized = (Array.isArray(list) ? list : [])
+          .map((x: any) => ({
+            _id: String(x?._id ?? x?.id ?? ""),
+            name_work: String(
+              x?.name_tw ?? x?.name_work ?? x?.name ?? "",
+            ).trim(), // ✅ เพิ่ม name_tw
+          }))
+          .filter((x) => x._id && x.name_work);
 
-const list = Array.isArray(json) ? json : (json?.data ?? []);
-const normalized = (Array.isArray(list) ? list : [])
-  .map((x: any) => ({
-    _id: String(x?._id ?? x?.id ?? ""),
-    name_work: String(x?.name_tw ?? x?.name_work ?? x?.name ?? "").trim(), // ✅ เพิ่ม name_tw
-  }))
-  .filter((x) => x._id && x.name_work);
+        setWorkTypes(normalized);
+      } catch (e) {
+        setWorkTypesError(e instanceof Error ? e.message : String(e));
+        setWorkTypes([]);
+      } finally {
+        setWorkTypesLoading(false);
+      }
+    };
 
-setWorkTypes(normalized);
-
-    } catch (e) {
-      setWorkTypesError(e instanceof Error ? e.message : String(e));
-      setWorkTypes([]);
-    } finally {
-      setWorkTypesLoading(false);
-    }
-  };
-
-  run();
-}, []);
+    run();
+  }, []);
 
   const resetForm = () => {
     setFormData({
@@ -306,7 +305,9 @@ setWorkTypes(normalized);
 
         const json = await safeReadJson(res);
         if (!res.ok) {
-          throw new Error(`HTTP ${res.status}\n${JSON.stringify(json, null, 2)}`);
+          throw new Error(
+            `HTTP ${res.status}\n${JSON.stringify(json, null, 2)}`,
+          );
         }
 
         const list = Array.isArray(json)
@@ -343,7 +344,9 @@ setWorkTypes(normalized);
       setFormData((prev) => ({
         ...prev,
         tax_id: String(json.company?.tax ?? prev.tax_id),
-        company: String(json.company?.companyName ?? json.company?.company ?? prev.company),
+        company: String(
+          json.company?.companyName ?? json.company?.company ?? prev.company,
+        ),
 
         fullName: String(o.customer_name ?? ""),
         phoneNumber: String(o.phone ?? ""),
@@ -371,9 +374,8 @@ setWorkTypes(normalized);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-     ) => {
+  ) => {
     const { name, value } = e.target;
-    
 
     setFormData((prev) => {
       const next = { ...prev, [name]: value };
@@ -382,9 +384,7 @@ setWorkTypes(normalized);
         next.endDate = "";
       }
       return next;
-      
     });
-    
   };
 
   const validate = () => {
@@ -408,7 +408,6 @@ setWorkTypes(normalized);
       setFormError("กรุณากรอกข้อมูลให้ครบถ้วน");
       return false;
     }
-    
 
     setFormError("");
     return true;
@@ -425,9 +424,12 @@ setWorkTypes(normalized);
     setResult("");
 
     try {
-      if (projectsState.status !== "success") throw new Error("Projects ยังโหลดไม่เสร็จ");
+      if (projectsState.status !== "success")
+        throw new Error("Projects ยังโหลดไม่เสร็จ");
 
-      const selectedProject = projectsState.data.find((p) => p.gid === selectedProjectGid);
+      const selectedProject = projectsState.data.find(
+        (p) => p.gid === selectedProjectGid,
+      );
       if (!selectedProject) throw new Error("ไม่พบโปรเจกต์ที่เลือก");
 
       const formEl = e.currentTarget as HTMLFormElement;
@@ -449,15 +451,20 @@ setWorkTypes(normalized);
       const lines: string[] = [];
 
       // --- ข้อมูลลูกค้า ---
-      if (formData.tax_id.trim()) lines.push(`TAX ID: ${formData.tax_id.trim()}`);
-      if (formData.company.trim()) lines.push(`ชื่อบริษัท/หน่วยงาน: ${formData.company.trim()}`);
-      if (formData.fullName.trim()) lines.push(`ชื่อ: ${formData.fullName.trim()}`);
+      if (formData.tax_id.trim())
+        lines.push(`TAX ID: ${formData.tax_id.trim()}`);
+      if (formData.company.trim())
+        lines.push(`ชื่อบริษัท/หน่วยงาน: ${formData.company.trim()}`);
+      if (formData.fullName.trim())
+        lines.push(`ชื่อ: ${formData.fullName.trim()}`);
       if (workType) lines.push(`ประเภทงาน: ${workType}`);
 
-      if (formData.phoneNumber.trim()) lines.push(`เบอร์โทร: ${formData.phoneNumber.trim()}`);
+      if (formData.phoneNumber.trim())
+        lines.push(`เบอร์โทร: ${formData.phoneNumber.trim()}`);
       if (formData.email.trim()) lines.push(`อีเมล: ${formData.email.trim()}`);
       if (formData.lineId.trim()) lines.push(`Line: ${formData.lineId.trim()}`);
-      if (formData.address.trim()) lines.push(`ที่อยู่: ${formData.address.trim()}`);
+      if (formData.address.trim())
+        lines.push(`ที่อยู่: ${formData.address.trim()}`);
 
       // --- รายละเอียดงาน ---
       const jobName = getStr("jobName");
@@ -517,7 +524,8 @@ setWorkTypes(normalized);
         lines.push(pos ? `ปรุ: ${pos}` : "ปรุ");
       }
 
-      if (formData.extra.trim()) lines.push(`เพิ่มเติม: ${formData.extra.trim()}`);
+      if (formData.extra.trim())
+        lines.push(`เพิ่มเติม: ${formData.extra.trim()}`);
 
       // --- รันนัมเบอร์ ---
       if (checked("bind_run_enabled")) {
@@ -528,7 +536,11 @@ setWorkTypes(normalized);
         const rangeCustom = getStr("bind_run_range_custom");
 
         const rangeText =
-          range === "ยาว" ? (rangeCustom ? `ยาว ${rangeCustom}` : "ยาว") : range;
+          range === "ยาว"
+            ? rangeCustom
+              ? `ยาว ${rangeCustom}`
+              : "ยาว"
+            : range;
 
         if (color) lines.push(`รันนัมเบอร์ สี/${color}`);
         if (book) lines.push(`เล่มที่ ${book}`);
@@ -549,15 +561,19 @@ setWorkTypes(normalized);
       if (count_Detail) lines.push(`จำนวนพิมพ์: ${count_Detail}`);
 
       const Detail_Type = getAllStr("Detail_Type");
-      if (Detail_Type.length > 0) lines.push(`รูปแบบ: ${Detail_Type.join(", ")}`);
+      if (Detail_Type.length > 0)
+        lines.push(`รูปแบบ: ${Detail_Type.join(", ")}`);
 
       // ชนิดรูปแบบงาน
       const typeWorks = getAllStr("type_of_work");
       const otherType = getStr("other_type_of_work");
       const finalTypeWorks = typeWorks
-        .map((x) => (x === "อื่นๆ" ? (otherType ? `อื่นๆ: ${otherType}` : "อื่นๆ") : x))
+        .map((x) =>
+          x === "อื่นๆ" ? (otherType ? `อื่นๆ: ${otherType}` : "อื่นๆ") : x,
+        )
         .filter((x) => x.length > 0);
-      if (finalTypeWorks.length > 0) lines.push(`ชนิดรูปแบบงาน: ${finalTypeWorks.join(", ")}`);
+      if (finalTypeWorks.length > 0)
+        lines.push(`ชนิดรูปแบบงาน: ${finalTypeWorks.join(", ")}`);
 
       // เครื่องพิมพ์
       const printer = getAllStr("printer");
@@ -588,11 +604,19 @@ setWorkTypes(normalized);
       });
 
       const taskGid = getTaskGid(mainJson);
-      if (!taskGid) throw new Error("สร้าง Task แล้ว แต่ไม่ได้ taskGid (response shape ไม่ตรง)");
+      if (!taskGid)
+        throw new Error(
+          "สร้าง Task แล้ว แต่ไม่ได้ taskGid (response shape ไม่ตรง)",
+        );
 
       const mainTaskInfoJson = await fetchJsonOrThrow(
         `${API_BASE_URL}/tasks/${taskGid}?opt_fields=gid,name,permalink_url`,
-        { headers: { Accept: "application/json", "X-Tunnel-Skip-AntiPhishing-Page": "True" } },
+        {
+          headers: {
+            Accept: "application/json",
+            "X-Tunnel-Skip-AntiPhishing-Page": "True",
+          },
+        },
       );
       const mainTaskInfo = normalizeAsanaTask(mainTaskInfoJson);
 
@@ -604,10 +628,13 @@ setWorkTypes(normalized);
           const form = new FormData();
           form.append("file", file);
 
-          const upRes = await fetch(`${API_BASE_URL}/tasks/${taskGid}/attachments`, {
-            method: "POST",
-            body: form,
-          });
+          const upRes = await fetch(
+            `${API_BASE_URL}/tasks/${taskGid}/attachments`,
+            {
+              method: "POST",
+              body: form,
+            },
+          );
 
           const upJson = await safeReadJson(upRes);
           if (!upRes.ok) {
@@ -623,7 +650,12 @@ setWorkTypes(normalized);
 
           const metaJson = await fetchJsonOrThrow(
             `${API_BASE_URL}/attachments/${att.gid}?opt_fields=name,permanent_url`,
-            { headers: { Accept: "application/json", "X-Tunnel-Skip-AntiPhishing-Page": "True" } },
+            {
+              headers: {
+                Accept: "application/json",
+                "X-Tunnel-Skip-AntiPhishing-Page": "True",
+              },
+            },
           );
           const meta = parseUploadAttachment(metaJson);
 
@@ -637,7 +669,8 @@ setWorkTypes(normalized);
       // อัปเดต notes เพิ่มไฟล์แนบใน Asana งานหลัก
       if (fileLinks.length > 0) {
         const linksText =
-          "\n\nไฟล์แนบ:\n" + fileLinks.map((f) => `- ${f.name}: ${f.url || "-"}`).join("\n");
+          "\n\nไฟล์แนบ:\n" +
+          fileLinks.map((f) => `- ${f.name}: ${f.url || "-"}`).join("\n");
 
         await fetchJsonOrThrow(`${API_BASE_URL}/tasks/${taskGid}`, {
           method: "PUT",
@@ -652,10 +685,9 @@ setWorkTypes(normalized);
 
       // ✅ 3) สร้าง subtasks (ของคุณตอนนี้ยังคงเป็น subtask จริง)
       const otherTasks: AsanaTaskMini[] = [];
-      const mainRef =
-        mainTaskInfo?.permalink_url
-          ? `\n\nอ้างอิงงานหลัก: ${mainTaskInfo.permalink_url}`
-          : `\n\nอ้างอิงงานหลัก (GID): ${taskGid}`;
+      const mainRef = mainTaskInfo?.permalink_url
+        ? `\n\nอ้างอิงงานหลัก: ${mainTaskInfo.permalink_url}`
+        : `\n\nอ้างอิงงานหลัก (GID): ${taskGid}`;
 
       const attachText =
         fileLinks.length > 0
@@ -699,7 +731,12 @@ setWorkTypes(normalized);
 
           const otherInfoJson = await fetchJsonOrThrow(
             `${API_BASE_URL}/tasks/${otherGid}?opt_fields=gid,name,permalink_url`,
-            { headers: { Accept: "application/json", "X-Tunnel-Skip-AntiPhishing-Page": "True" } },
+            {
+              headers: {
+                Accept: "application/json",
+                "X-Tunnel-Skip-AntiPhishing-Page": "True",
+              },
+            },
           );
 
           const otherInfo = normalizeAsanaTask(otherInfoJson);
@@ -738,7 +775,7 @@ setWorkTypes(normalized);
         type_work: selectedProjectGid,
         count_work: Number(formData.quantity || 0),
         detail_work: notes, // ✅ เก็บ notes ทั้งหมดลง detail_work เลย (คอนเซปเดิม)
-        file: fileText,     // ✅ ตาม swagger เป็น string
+        file: fileText, // ✅ ตาม swagger เป็น string
         // ถ้าคุณอยากเก็บ task ลง DB ด้วยจริง ๆ ต้องให้ backend รองรับ field เพิ่ม
         // mainTask: mainTaskInfo ?? { gid: taskGid },
         // otherTasks,
@@ -757,41 +794,455 @@ setWorkTypes(normalized);
   };
 
   const showPaperUsed = workType === "หนังสือ" || workType === "อื่นๆ";
-  const showPasansee = workType === "ฏีกา" || workType === "หนังสือ" || workType === "อื่นๆ";
-  const showBinding = workType === "ฏีกา" || workType === "หนังสือ" || workType === "อื่นๆ";
+  const showPasansee =
+    workType === "ฏีกา" || workType === "หนังสือ" || workType === "อื่นๆ";
+  const showBinding =
+    workType === "ฏีกา" || workType === "หนังสือ" || workType === "อื่นๆ";
 
   const navigate = useNavigate();
 
-const handleLogout = () => {
-  // แบบใช้ฟังก์ชัน
-  // clearToken();
+  const handleLogout = () => {
+    // แบบใช้ฟังก์ชัน
+    // clearToken();
 
-  // หรือแบบลบ key ตรง ๆ
-  localStorage.removeItem("admin_token"); // ถ้าคุณใช้ localStorage
-  // sessionStorage.removeItem("admin_token"); // ถ้าคุณเปลี่ยนไปใช้ sessionStorage
+    // หรือแบบลบ key ตรง ๆ
+    localStorage.removeItem("admin_token"); // ถ้าคุณใช้ localStorage
+    // sessionStorage.removeItem("admin_token"); // ถ้าคุณเปลี่ยนไปใช้ sessionStorage
 
-  navigate("/admin/login", { replace: true });
-};
-
+    navigate("/admin/login", { replace: true });
+  };
 
   return (
     <>
+      <header className="mx-auto max-w-3xl px-4 py-10  text-4xl">
+        <h2 className="text-center">ใบสั่งพิมพ์งาน</h2>
+      </header>
+
+      <section>
+        {/* {projectsState.status === "loading" && (
+            <div>
+              <span className="loading loading-spinner loading-xl"></span>
+            </div>
+          )} */}
+
+        {/* {projectsState.status === "error" && (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 whitespace-pre-wrap">
+              {projectsState.error}
+            </div>
+          )} */}
+
+        {/* {projectsState.status === "success" && ( */}
+        <form
+          id="order-form"
+          onSubmit={handleSubmit}
+          encType="multipart/form-data"
+          noValidate
+          className="  px-2 sm:px-6"
+        >
+          {/* {formError && (
+                <div className="rounded-xl border border-rose-200 bg-rose-50 p-1 text-sm text-rose-700">
+                  {formError}
+                </div>
+              )} */}
+
+          <div className="mx-4 mb-6 rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            {/* HEADER */}
+            <div className="px-6 pt-6">
+              <h2 className="text-lg sm:text-xl font-semibold flex items-center gap-2 text-slate-800">
+                <User className="text-blue-600 w-5 h-5" />
+                ข้อมูลลูกค้า
+              </h2>
+              <div className="mt-4 border-b border-slate-200" />
+            </div>
+
+            {/* FORM GRID */}
+            <div className="px-6 pb-2 pt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* tax */}
+              <div className="space-y-1">
+                <label className="text-sm  text-slate-700">TAX</label>
+                <input
+                  name="tax_id"
+                  value={formData.tax_id}
+                  onChange={handleChange}
+                  className="w-full rounded-xl px-3 py-2 text-sm outline-none transition border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-100"
+                />
+              </div>
+              {/* COMPANY */}
+              <div className="space-y-1">
+                <label className="text-sm  text-slate-700">
+                  ชื่อบริษัท/หน่วยงาน <span className="text-rose-600">*</span>
+                </label>
+                <input
+                  name="company"
+                  value={formData.company}
+                  onChange={handleChange}
+                  className={`w-full rounded-xl px-3 py-2 text-sm outline-none transition
+                ${
+                  errors.company
+                    ? "border border-rose-500 focus:ring-2 focus:ring-rose-200"
+                    : "border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-100"
+                }`}
+                />
+                {errors.company && (
+                  <p className="text-xs text-rose-600">{errors.company}</p>
+                )}
+              </div>
+
+              {/* FULL NAME */}
+              <div className="space-y-1">
+                <label className="text-sm  text-slate-700">
+                  ลูกค้า <span className="text-rose-600">*</span>
+                </label>
+                <input
+                  name="fullName"
+                  value={formData.fullName}
+                  onChange={handleChange}
+                  className={`w-full rounded-xl px-3 py-2 text-sm outline-none transition
+                ${
+                  errors.fullName
+                    ? "border border-rose-500 focus:ring-2 focus:ring-rose-200"
+                    : "border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-100"
+                }`}
+                />
+                {errors.fullName && (
+                  <p className="text-xs text-rose-600">{errors.fullName}</p>
+                )}
+              </div>
+
+              {/* PHONE */}
+              <div className="space-y-1">
+                <label className="text-sm  text-slate-700">
+                  โทร <span className="text-rose-600">*</span>
+                </label>
+                <input
+                  name="phoneNumber"
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={formData.phoneNumber}
+                  onChange={handleChange}
+                  className={`w-full rounded-xl px-3 py-2 text-sm outline-none transition
+                  ${
+                    errors.phoneNumber
+                      ? "border border-rose-500 focus:ring-2 focus:ring-rose-200"
+                      : "border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-100"
+                  }`}
+                />
+                {errors.phoneNumber && (
+                  <p className="text-xs text-rose-600">{errors.phoneNumber}</p>
+                )}
+              </div>
+            </div>
+            {/* แถวที่ 2 */}
+            <div className="px-6 pb-4 pt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* 🔹 LEFT SIDE (2x2 GRID) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                {/* EMAIL */}
+                <div className="space-y-1">
+                  <label className="text-sm  text-slate-700">
+                    อีเมล <span className="text-rose-600">*</span>
+                  </label>
+                  <input
+                    name="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    className={`w-full rounded-xl px-3 py-2 text-sm outline-none transition
+                    ${
+                      errors.email
+                        ? "border border-rose-500 focus:ring-2 focus:ring-rose-200"
+                        : "border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-100"
+                    }`}
+                  />
+                  {errors.email && (
+                    <p className="text-xs text-rose-600">{errors.email}</p>
+                  )}
+                </div>
+
+                {/* LINE */}
+                <div className="space-y-1">
+                  <label className="text-sm  text-slate-700">Line</label>
+                  <input
+                    name="lineId"
+                    value={formData.lineId}
+                    onChange={handleChange}
+                    className="w-full rounded-xl px-3 py-2 text-sm outline-none transition border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-100"
+                  />
+                </div>
+
+                {/* ประเภทงาน */}
+                <div className="space-y-1">
+                  <label className="text-sm  text-slate-800">ประเภทงาน</label>
+                  <select
+                    value={workType}
+                    onChange={(e) => setWorkType(e.target.value)}
+                    disabled={workTypesLoading || workTypes.length === 0}
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-100 disabled:opacity-60"
+                  >
+                    <option value="" disabled>
+                      {workTypesLoading ? "กำลังโหลด..." : "เลือกประเภทงาน"}
+                    </option>
+
+                    {workTypes.map((t) => (
+                      <option key={t._id} value={t.name_work}>
+                        {t.name_work}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* PROJECT */}
+                <div className="space-y-1">
+                  <label className="text-sm  text-slate-800">
+                    Project <span className="text-rose-600">*</span>
+                  </label>
+                  <select
+                    value={selectedProjectGid}
+                    onChange={(e) => setSelectedProjectGid(e.target.value)}
+                    className={[
+                      " w-full rounded-xl border bg-white px-3 py-2.5 text-base sm:text-sm outline-none",
+                      errors.project
+                        ? "border-rose-400 focus:border-rose-500"
+                        : "border-slate-300 focus:border-slate-900",
+                    ].join(" ")}
+                  >
+                    <option value="" disabled>
+                      เลือกโปรเจกต์
+                    </option>
+                    {projectsState.data?.map((p) => (
+                      <option key={p.gid} value={p.gid}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.project && (
+                    <p className="text-xs text-rose-600">{errors.project}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* 🔹 RIGHT SIDE (ADDRESS) */}
+              <div className="space-y-1">
+                <label className="text-sm  text-slate-800">
+                  ที่อยู่ <span className="text-rose-600">*</span>
+                </label>
+                <textarea
+                  name="address"
+                  value={formData.address}
+                  onChange={handleChange}
+                  rows={6}
+                  className={`w-full rounded-2xl px-3 py-2 text-sm outline-none resize-none transition
+                  ${
+                    errors.address
+                      ? "border border-rose-500 focus:ring-2 focus:ring-rose-200"
+                      : "border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-100"
+                  }`}
+                />
+                {errors.address && (
+                  <p className="text-xs text-rose-600">{errors.address}</p>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="mx-4 mb-6 rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            {/* HEADER */}
+            <div className="px-6 pt-6">
+              <h2 className="text-lg sm:text-xl font-semibold flex items-center gap-2 text-slate-800">
+                <ReceiptText className="text-blue-600 w-5 h-5" />
+                รายละเอียดงาน
+              </h2>
+              <div className="mt-4 border-b border-slate-200" />
+
+              <div className="px-6 pb-2 pt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* วันที่สั่งงาน */}
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-slate-700">
+                    วันที่สั่งงาน <span className="text-rose-600">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    name="startDate"
+                    value={formData.startDate}
+                    onChange={handleChange}
+                    className={[
+                      "w-full rounded-xl border bg-white px-3 py-2 text-sm outline-none transition",
+                      "focus:ring-2 focus:ring-indigo-100",
+                      errors.startDate
+                        ? "border-rose-400 focus:border-rose-500"
+                        : "border-slate-300 focus:border-indigo-600",
+                    ].join(" ")}
+                  />
+                  {errors.startDate && (
+                    <p className="text-xs text-rose-600">{errors.startDate}</p>
+                  )}
+                </div>
+
+                {/* วันที่รับงาน */}
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-slate-700">
+                    วันที่รับงาน <span className="text-rose-600">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    name="endDate"
+                    value={formData.endDate}
+                    onChange={handleChange}
+                    min={formData.startDate || undefined}
+                    className={[
+                      "w-full rounded-xl border bg-white px-3 py-2.5 text-sm outline-none transition",
+                      "focus:ring-2 focus:ring-indigo-100",
+                      errors.endDate
+                        ? "border-rose-400 focus:border-rose-500"
+                        : "border-slate-300 focus:border-indigo-600",
+                    ].join(" ")}
+                  />
+                  {errors.endDate && (
+                    <p className="text-xs text-rose-600">{errors.endDate}</p>
+                  )}
+                </div>
+
+                {/* ชื่องาน */}
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-slate-700">
+                    ชื่องาน <span className="text-rose-600">*</span>
+                  </label>
+                  <input
+                    name="jobName"
+                    value={formData.jobName}
+                    onChange={handleChange}
+                    className={[
+                      "w-full rounded-xl border bg-white px-3 py-2.5 text-sm outline-none transition",
+                      "focus:ring-2 focus:ring-indigo-100",
+                      errors.jobName
+                        ? "border-rose-400 focus:border-rose-500"
+                        : "border-slate-300 focus:border-indigo-600",
+                    ].join(" ")}
+                  />
+                  {errors.jobName && (
+                    <p className="text-xs text-rose-600">{errors.jobName}</p>
+                  )}
+                </div>
+
+                {/* จำนวนสั่ง */}
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-slate-700">
+                    จำนวนสั่ง <span className="text-rose-600">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    name="quantity"
+                    value={formData.quantity}
+                    onChange={handleChange}
+                    min={1}
+                    className={`w-full rounded-xl border bg-white px-3 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-indigo-100 ${
+                      errors.quantity
+                        ? "border-rose-500"
+                        : "border-slate-300 focus:border-indigo-600"
+                    }`}
+                  />
+                  {errors.quantity && (
+                    <p className="text-xs text-rose-600">{errors.quantity}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="px-6 pb-6 pt-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-200">
+                <div className="p-6">
+                  <Subtask
+                    projects={
+                      projectsState.status === "success"
+                        ? projectsState.data
+                        : []
+                    }
+                    value={subtasks}
+                    onChange={setSubtasks}
+                    disabled={creating || projectsState.status !== "success"}
+                  />
+                </div>
+                <div className="p-6">
+                  <Details key={detailsKey} files={files} setFiles={setFiles} />
+                </div>
+                <div className="p-6">
+                  <Detail_Type
+                    key={detailsKey}
+                    files={files}
+                    setFiles={setFiles}
+                  />
+                </div>
+              </div>
+            </div>
+            </div>
+          </div>
+           <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 pb-10 disabled:opacity-50 disabled:cursor-not-allowed">
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={creating}
+                    className="rounded-xl bg-slate-900 px-5 py-2.5 text-white text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {creating ? "กำลังส่ง..." : "ส่งใบสั่งงาน"}
+                  </button>
+                </div>
+
+                {successOpen && (
+                  <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+                    onClick={() => setSuccessOpen(false)}
+                  >
+                    <div
+                      className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+                      onClick={(ev) => ev.stopPropagation()}
+                    >
+                      <div className="text-lg font-semibold text-slate-900">
+                        สำเร็จ
+                      </div>
+                      <div className="mt-2 text-sm text-slate-700">
+                        {successMessage}
+                      </div>
+
+                      <div className="mt-6 flex justify-end gap-2">
+                        <button
+                          type="button"
+                          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                          onClick={() => {
+                            setSuccessOpen(false);
+                            resetForm();
+                            window.scrollTo({ top: 0, behavior: "smooth" });
+                          }}
+                        >
+                          ตกลง
+                        </button>
+
+                        <PDFDownloadButton
+                          formId="order-form"
+                          formData={formData}
+                          notes={createdNotes}
+                          fileName="order.pdf"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+        </form>
+        
+      </section>
+
       <div className="min-h-screen text-slate-900">
         <header className="mx-auto max-w-3xl px-4 py-10">
-  <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="ml-4 shrink-0 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50"
+            >
+              ออกจากระบบ
+            </button>
+          </div>
+        </header>
 
-
-    <button
-      type="button"
-      onClick={handleLogout}
-      className="ml-4 shrink-0 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50"
-    >
-      ออกจากระบบ
-    </button>
-  </div>
-</header>
-
-        <header className="mx-auto max-w-3xl px-4 py-10 text-center text-4xl">
+        {/* <header className="mx-auto max-w-3xl px-4 py-10 text-center text-4xl">
           <h2>ใบสั่งพิมพ์งาน</h2>
         </header>
 
@@ -826,11 +1277,6 @@ const handleLogout = () => {
                 </div>
               )}
 
-              {/* ===== UI เดิมของคุณ (ยาว) ===== */}
-              {/* ✅ ส่วน UI ที่เหลือเหมือนเดิมทั้งหมด */}
-              {/* ผม “ไม่แก้ UI” เพื่อให้คุณแทนไฟล์ได้ตรง ๆ */}
-              {/* ===== เริ่ม UI ของคุณ ===== */}
-
               <div className="w-full bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="border border-slate-200 rounded-2xl ">
                   <div className="grid grid-cols-1 md:grid-cols-2 justify-between px-6 py-5">
@@ -852,7 +1298,8 @@ const handleLogout = () => {
 
                   <div className="grid px-6 py-5">
                     <label>
-                      ชื่อบริษัท/หน่วยงาน <span className="text-red-600">*</span>
+                      ชื่อบริษัท/หน่วยงาน{" "}
+                      <span className="text-red-600">*</span>
                     </label>
                     <input
                       name="company"
@@ -866,7 +1313,9 @@ const handleLogout = () => {
                         }`}
                     />
                     {errors.company && (
-                      <p className="mt-1 text-xs text-rose-600">{errors.company}</p>
+                      <p className="mt-1 text-xs text-rose-600">
+                        {errors.company}
+                      </p>
                     )}
                   </div>
 
@@ -887,7 +1336,9 @@ const handleLogout = () => {
                           }`}
                       />
                       {errors.fullName && (
-                        <p className="mt-1 text-xs text-rose-600">{errors.fullName}</p>
+                        <p className="mt-1 text-xs text-rose-600">
+                          {errors.fullName}
+                        </p>
                       )}
                     </div>
 
@@ -910,7 +1361,9 @@ const handleLogout = () => {
                           }`}
                       />
                       {errors.phoneNumber && (
-                        <p className="mt-1 text-xs text-rose-600">{errors.phoneNumber}</p>
+                        <p className="mt-1 text-xs text-rose-600">
+                          {errors.phoneNumber}
+                        </p>
                       )}
                     </div>
 
@@ -931,7 +1384,9 @@ const handleLogout = () => {
                           }`}
                       />
                       {errors.email && (
-                        <p className="mt-1 text-xs text-rose-600">{errors.email}</p>
+                        <p className="mt-1 text-xs text-rose-600">
+                          {errors.email}
+                        </p>
                       )}
                     </div>
 
@@ -964,7 +1419,9 @@ const handleLogout = () => {
                           }`}
                       />
                       {errors.address && (
-                        <p className="mt-1 text-xs text-rose-600">{errors.address}</p>
+                        <p className="mt-1 text-xs text-rose-600">
+                          {errors.address}
+                        </p>
                       )}
                     </div>
                   </div>
@@ -973,7 +1430,9 @@ const handleLogout = () => {
 
               <div className="w-full bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden ">
                 <div className="border border-slate-200 rounded-2xl px-6 py-5">
-                  <h2 className=" pt-6 text-lg sm:text-xl font-semibold">รายละเอียดงาน</h2>
+                  <h2 className=" pt-6 text-lg sm:text-xl font-semibold">
+                    รายละเอียดงาน
+                  </h2>
 
                   <div className="grid grid-cols-2 md:grid-cols-2 gap-6 px-6 py-5">
                     <div>
@@ -993,7 +1452,9 @@ const handleLogout = () => {
                         ].join(" ")}
                       />
                       {errors.startDate && (
-                        <p className="mt-1 text-xs text-rose-600">{errors.startDate}</p>
+                        <p className="mt-1 text-xs text-rose-600">
+                          {errors.startDate}
+                        </p>
                       )}
                     </div>
 
@@ -1015,40 +1476,16 @@ const handleLogout = () => {
                         ].join(" ")}
                       />
                       {errors.endDate && (
-                        <p className="mt-1 text-xs text-rose-600">{errors.endDate}</p>
+                        <p className="mt-1 text-xs text-rose-600">
+                          {errors.endDate}
+                        </p>
                       )}
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 px-6 py-5">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-                      <div>
-                        <label className="text-sm font-medium text-slate-800">
-                          Project <span className="text-red-600">*</span>
-                        </label>
-                        <select
-                          value={selectedProjectGid}
-                          onChange={(e) => setSelectedProjectGid(e.target.value)}
-                          className={[
-                            "mt-2 w-full rounded-xl border bg-white px-3 py-2.5 text-base sm:text-sm outline-none",
-                            errors.project
-                              ? "border-rose-400 focus:border-rose-500"
-                              : "border-slate-300 focus:border-slate-900",
-                          ].join(" ")}
-                        >
-                          <option value="" disabled>
-                            เลือกโปรเจกต์
-                          </option>
-                          {projectsState.data.map((p) => (
-                            <option key={p.gid} value={p.gid}>
-                              {p.name}
-                            </option>
-                          ))}
-                        </select>
-                        {errors.project && (
-                          <p className="mt-1 text-xs text-rose-600">{errors.project}</p>
-                        )}
-                      </div>
+                       
 
                       <div>
                         <label>
@@ -1062,11 +1499,15 @@ const handleLogout = () => {
                           min={1}
                           required
                           className={`mt-2 w-full rounded-xl border bg-white px-3 py-2.5 text-base sm:text-sm outline-none focus:border-slate-900 ${
-                            errors.quantity ? "border-rose-500" : "border-slate-300"
+                            errors.quantity
+                              ? "border-rose-500"
+                              : "border-slate-300"
                           }`}
                         />
                         {errors.quantity && (
-                          <p className="mt-1 text-xs text-rose-600">{errors.quantity}</p>
+                          <p className="mt-1 text-xs text-rose-600">
+                            {errors.quantity}
+                          </p>
                         )}
                       </div>
                     </div>
@@ -1087,43 +1528,46 @@ const handleLogout = () => {
                         ].join(" ")}
                       />
                       {errors.jobName && (
-                        <p className="mt-1 text-xs text-rose-600">{errors.jobName}</p>
+                        <p className="mt-1 text-xs text-rose-600">
+                          {errors.jobName}
+                        </p>
                       )}
                     </div>
 
                     <div className="text-sm font-medium text-slate-800">
-  <label>ประเภทงาน</label>
+                      <label>ประเภทงาน</label>
 
-  {!workTypesLoading && workTypes.length === 0 && (
-  <option value="" disabled>
-    ไม่มีประเภทงานในระบบ
-  </option>
-)}
+                      {!workTypesLoading && workTypes.length === 0 && (
+                        <option value="" disabled>
+                          ไม่มีประเภทงานในระบบ
+                        </option>
+                      )}
 
+                      <select
+                        value={workType}
+                        onChange={(e) => setWorkType(e.target.value)}
+                        disabled={workTypesLoading || workTypes.length === 0}
+                        className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900 disabled:opacity-60"
+                      >
+                        <option value="" disabled>
+                          {workTypesLoading ? "กำลังโหลด..." : "เลือกประเภทงาน"}
+                        </option>
 
-  <select
-    value={workType}
-    onChange={(e) => setWorkType(e.target.value)}
-    disabled={workTypesLoading || workTypes.length === 0}
-    className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900 disabled:opacity-60"
-  >
-    <option value="" disabled>
-      {workTypesLoading ? "กำลังโหลด..." : "เลือกประเภทงาน"}
-    </option>
-
-    {workTypes.map((t) => (
-      <option key={t._id} value={t.name_work}>
-        {t.name_work}
-      </option>
-    ))}
-  </select>
-</div>
-
-
+                        {workTypes.map((t) => (
+                          <option key={t._id} value={t.name_work}>
+                            {t.name_work}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
 
                   <Subtask
-                    projects={projectsState.status === "success" ? projectsState.data : []}
+                    projects={
+                      projectsState.status === "success"
+                        ? projectsState.data
+                        : []
+                    }
                     value={subtasks}
                     onChange={setSubtasks}
                     disabled={creating || projectsState.status !== "success"}
@@ -1167,8 +1611,12 @@ const handleLogout = () => {
                       className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
                       onClick={(ev) => ev.stopPropagation()}
                     >
-                      <div className="text-lg font-semibold text-slate-900">สำเร็จ</div>
-                      <div className="mt-2 text-sm text-slate-700">{successMessage}</div>
+                      <div className="text-lg font-semibold text-slate-900">
+                        สำเร็จ
+                      </div>
+                      <div className="mt-2 text-sm text-slate-700">
+                        {successMessage}
+                      </div>
 
                       <div className="mt-6 flex justify-end gap-2">
                         <button
@@ -1196,7 +1644,7 @@ const handleLogout = () => {
               </div>
             </form>
           )}
-        </section>
+        </section> */}
       </div>
     </>
   );

@@ -1,5 +1,5 @@
 // src/lib/dbClient.ts
-const DB_API_BASE_URL = import.meta.env.VITE_DB_API_BASE_URL as string;
+const DB_API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
 
 export const TOKEN_KEY = "admin_token";
 
