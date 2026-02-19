@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-
-const DB_API_BASE_URL = import.meta.env.VITE_DB_API_BASE_URL as string;
+import axios from "../lib/axios";
+const DB_API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
 
 type PrinterDoc = {
   _id: string;
@@ -41,12 +41,14 @@ export default function Printer() {
         setError("");
 
         // ✅ endpoint ของคุณคืน "array" ตรง ๆ
-        const json = await fetchJsonOrThrow<PrinterDoc[]>(
-          `${DB_API_BASE_URL}/printers`,
-          { headers: { Accept: "application/json",Authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2OTkyYTUwMjE1NTg3ZTNjMmYwOTQ4MDIiLCJ1c2VyX25hbWUiOiJBZG1pbiIsInJvbGUiOiJBZG1pbiIsImV4cCI6MTc3MTMxNjEyOX0.PK94BawMpQid_PMYQw74t8kJs_EZzOhE7mHxBkpXQ9A" } },
-        );
+        // const json = await fetchJsonOrThrow<PrinterDoc[]>(
+        //   `${DB_API_BASE_URL}/printers`,
+        //   { headers: { Accept: "application/json",Authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2OTkyYTUwMjE1NTg3ZTNjMmYwOTQ4MDIiLCJ1c2VyX25hbWUiOiJBZG1pbiIsInJvbGUiOiJBZG1pbiIsImV4cCI6MTc3MTQ2OTY1OH0.chuO_Wv7SSESIFxaJNP80XiSMtCyYnl1eijLg71oA2Y" } },
+        // );
 
-        setItems(Array.isArray(json) ? json : []);
+        const res = await axios.get("/printers")
+
+        setItems(Array.isArray(res.data) ? res.data : []);
       } catch (e) {
         console.error("PRINTER FETCH ERROR:", e);
         setError(e instanceof Error ? e.message : String(e));

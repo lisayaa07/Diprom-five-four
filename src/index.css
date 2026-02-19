@@ -2,6 +2,7 @@
 @plugin "daisyui";
 html, body {
   font-family: "Sarabun", sans-serif;
-  background-color: aliceblue;
   color: black;
+  background-color: white;
+  color-scheme: light;
 }

@@ -1,5 +1,6 @@
 import { useState, type JSX } from "react";
 import { useNavigate } from "react-router-dom";
+import { Search } from "lucide-react";
 
 function SearchBox(): JSX.Element {
   const nav = useNavigate();
@@ -9,37 +10,36 @@ function SearchBox(): JSX.Element {
     const s = q.trim();
     if (!s) return;
     nav(`/search-user?q=${encodeURIComponent(s)}`);
+    setQ("");
   };
 
   return (
-    <div className="w-full">
-      <label className="block text-sm font-medium text-slate-700">
-        ค้นหาลูกค้า
-      </label>
-
-      <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        go();
+      }}
+      className="flex items-center gap-2"
+    >
+      <div className="relative">
         <input
           type="text"
-          name="search"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") go();
-          }}
-          placeholder="พิมพ์ชื่อบริษัท..."
-          className="w-full flex-1 rounded-lg bg-white border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-900"
+          placeholder="ค้นหาลูกค้า..."
+          className="pl-10 pr-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm w-64"
         />
-
-        <button
-          type="button"
-          onClick={go}
-          disabled={!q.trim()}
-          className="shrink-0 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-        >
-          ค้นหา
-        </button>
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
       </div>
-    </div>
+
+      <button
+        type="submit"
+        disabled={!q.trim()}
+        className="bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm hover:bg-indigo-700 transition disabled:opacity-50"
+      >
+        ค้นหา
+      </button>
+    </form>
   );
 }
 

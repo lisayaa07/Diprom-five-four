@@ -1,40 +1,10 @@
 // src/SuperAdmin.tsx
-import React, { useEffect, useMemo, useState } from "react";
-import { getToken, clearToken } from "./lib/Auth";
+import { useEffect, useMemo, useState } from "react";
+import axios from "./lib/axios"; // 👈 ใช้ instance
+import { clearToken } from "./lib/Auth";
 import { useNavigate } from "react-router-dom";
 
-const DB_API_BASE_URL = import.meta.env.VITE_DB_API_BASE_URL as string;
-
 type MasterItem = { _id: string; [k: string]: any };
-
-function authHeaders(extra?: HeadersInit): HeadersInit {
-  const token = getToken();
-  return {
-    Accept: "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(extra as any),
-  };
-}
-
-async function safeReadJson(res: Response) {
-  const text = await res.text();
-  if (!text) return null;
-  try {
-    return JSON.parse(text);
-  } catch {
-    return { raw: text };
-  }
-}
-
-async function dbFetchJson(path: string, init?: RequestInit) {
-  const res = await fetch(`${DB_API_BASE_URL}${path}`, {
-    ...init,
-    headers: authHeaders(init?.headers),
-  });
-  const json = await safeReadJson(res);
-  if (!res.ok) throw new Error(`DB HTTP ${res.status}\n${JSON.stringify(json, null, 2)}`);
-  return json;
-}
 
 type ResourceConf = {
   key: "printers" | "type-works" | "colors";
@@ -42,7 +12,7 @@ type ResourceConf = {
   listPath: string;
   createPath: string;
   deletePath: (id: string) => string;
-  nameField: string; // field ที่ backend ใช้เก็บชื่อ
+  nameField: string;
   label: string;
 };
 
@@ -88,18 +58,20 @@ export default function SuperAdmin() {
   const [items, setItems] = useState<MasterItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
-
   const [name, setName] = useState("");
 
+  // ✅ LOAD
   const load = async () => {
     try {
       setLoading(true);
       setErr("");
-      const json = await dbFetchJson(conf.listPath, { method: "GET" });
-      const list = Array.isArray(json) ? json : json?.data ?? [];
+
+      const { data } = await axios.get(conf.listPath);
+
+      const list = Array.isArray(data) ? data : data?.data ?? [];
       setItems(Array.isArray(list) ? list : []);
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
+    } catch (e: any) {
+      setErr(e.response?.data?.message || e.message);
       setItems([]);
     } finally {
       setLoading(false);
@@ -112,34 +84,40 @@ export default function SuperAdmin() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
+  // ✅ CREATE
   const onCreate = async () => {
     if (!name.trim()) return;
+
     try {
       setLoading(true);
       setErr("");
-      await dbFetchJson(conf.createPath, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ [conf.nameField]: name.trim() }),
+
+      await axios.post(conf.createPath, {
+        [conf.nameField]: name.trim(),
       });
+
       setName("");
       await load();
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
+    } catch (e: any) {
+      setErr(e.response?.data?.message || e.message);
     } finally {
       setLoading(false);
     }
   };
 
+  // ✅ DELETE
   const onDelete = async (id: string) => {
     if (!confirm("ต้องการลบรายการนี้ใช่ไหม?")) return;
+
     try {
       setLoading(true);
       setErr("");
-      await dbFetchJson(conf.deletePath(id), { method: "DELETE" });
+
+      await axios.delete(conf.deletePath(id));
+
       await load();
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
+    } catch (e: any) {
+      setErr(e.response?.data?.message || e.message);
     } finally {
       setLoading(false);
     }
@@ -150,7 +128,9 @@ export default function SuperAdmin() {
       <header className="mx-auto max-w-5xl px-6 py-6 flex items-center justify-between">
         <div>
           <div className="text-2xl font-semibold text-slate-900">SuperAdmin</div>
-          <div className="text-sm text-slate-600">จัดการ Master DB (เพิ่ม/ลบข้อมูล)</div>
+          <div className="text-sm text-slate-600">
+            จัดการ Master DB (เพิ่ม/ลบข้อมูล)
+          </div>
         </div>
 
         <div className="flex gap-2">
@@ -199,7 +179,9 @@ export default function SuperAdmin() {
 
         {/* Create */}
         <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5">
-          <div className="text-lg font-semibold text-slate-900">{conf.title}</div>
+          <div className="text-lg font-semibold text-slate-900">
+            {conf.title}
+          </div>
           <div className="mt-4 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3">
             <input
               value={name}
@@ -220,7 +202,9 @@ export default function SuperAdmin() {
         {/* List */}
         <div className="mt-6 rounded-2xl border border-slate-200 bg-white overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
-            <div className="text-sm font-semibold text-slate-900">รายการทั้งหมด</div>
+            <div className="text-sm font-semibold text-slate-900">
+              รายการทั้งหมด
+            </div>
             <button
               disabled={loading}
               onClick={load}
@@ -237,9 +221,14 @@ export default function SuperAdmin() {
           ) : (
             <ul className="divide-y divide-slate-200">
               {items.map((it) => (
-                <li key={it._id} className="px-5 py-3 flex items-center justify-between">
+                <li
+                  key={it._id}
+                  className="px-5 py-3 flex items-center justify-between"
+                >
                   <div className="text-sm text-slate-900">
-                    {String(it[conf.nameField] ?? it.name ?? it.title ?? "-")}
+                    {String(
+                      it[conf.nameField] ?? it.name ?? it.title ?? "-"
+                    )}
                   </div>
                   <button
                     onClick={() => onDelete(it._id)}
