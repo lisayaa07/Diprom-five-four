@@ -7,8 +7,8 @@ import axiosInstance from "./lib/axios";
 
 export default function AdminLogin() {
   const nav = useNavigate();
-  const [userName, setUserName] = useState("Admin");
-  const [password, setPassword] = useState("1234");
+  const [userName, setUserName] = useState("");
+const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -77,6 +77,7 @@ export default function AdminLogin() {
             <input
               value={userName}
               onChange={(e) => setUserName(e.target.value)}
+               placeholder="Username"
               className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-900"
             />
           </div>
@@ -85,6 +86,7 @@ export default function AdminLogin() {
             <input
               type="password"
               value={password}
+               placeholder="Password"
               onChange={(e) => setPassword(e.target.value)}
               className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-900"
             />
