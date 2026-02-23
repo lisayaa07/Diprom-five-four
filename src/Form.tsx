@@ -7,12 +7,13 @@ import Details from "./components/Details";
 import Subtask, { type SubtaskDraft } from "./components/Subtask";
 import TypeOfWork from "./components/TypeOfWork";
 import Printer from "./components/Printer";
-import SearchBox from "./components/Search_Box";
 import { useSearchParams } from "react-router-dom";
 import { API_BASE_URL } from "./config";
 import PDFDownloadButton from "./components/PDFDownloadLink";
 import { useNavigate } from "react-router-dom";
 import Detail_Type from "./components/Detail_Type";
+import Color from "./components/Color";
+import AdditionalDetails from "./components/Notes";
 
 const TOKEN_KEY = "admin_token"; // ให้ตรงกับตอน login เก็บไว้
 type WorkTypeDoc = { _id: string; name_work: string };
@@ -65,6 +66,7 @@ type AsanaAttachment = {
   gid: string;
   name: string;
   permanent_url?: string;
+   download_url?: string;
 };
 
 const parseUploadAttachment = (j: unknown): AsanaAttachment | null => {
@@ -92,6 +94,7 @@ type AsanaTaskMini = {
   name?: string;
   permalink_url?: string;
 };
+
 
 const normalizeAsanaTask = (j: unknown): AsanaTaskMini | null => {
   if (!j || typeof j !== "object") return null;
@@ -209,6 +212,7 @@ function Form(): JSX.Element {
     quantity: "",
     startDate: "",
     endDate: "",
+    
   });
 
   const [files, setFiles] = useState<File[]>([]);
@@ -228,6 +232,7 @@ function Form(): JSX.Element {
   const [workTypes, setWorkTypes] = useState<WorkTypeDoc[]>([]);
   const [workTypesLoading, setWorkTypesLoading] = useState(false);
   const [, setWorkTypesError] = useState("");
+  const [selectedColors, setSelectedColors] = useState<string[]>([]);
 
   useEffect(() => {
     const run = async () => {
@@ -524,8 +529,13 @@ function Form(): JSX.Element {
         lines.push(pos ? `ปรุ: ${pos}` : "ปรุ");
       }
 
-      if (formData.extra.trim())
-        lines.push(`เพิ่มเติม: ${formData.extra.trim()}`);
+     
+
+if (selectedColors.length > 0) {
+  lines.push(
+    `สีที่ใช้: ${selectedColors.join(", ")}`
+  );
+}
 
       // --- รันนัมเบอร์ ---
       if (checked("bind_run_enabled")) {
@@ -578,6 +588,12 @@ function Form(): JSX.Element {
       // เครื่องพิมพ์
       const printer = getAllStr("printer");
       if (printer.length > 0) lines.push(`เครื่องพิมพ์: ${printer.join(", ")}`);
+
+  if (formData.extra.trim()) {
+  lines.push("");
+  lines.push("📌 ข้อมูลเพิ่มเติม");
+  lines.push(formData.extra.trim());
+}
 
       const notes = lines.join("\n");
       setCreatedNotes(notes);
@@ -649,7 +665,7 @@ function Form(): JSX.Element {
           }
 
           const metaJson = await fetchJsonOrThrow(
-            `${API_BASE_URL}/attachments/${att.gid}?opt_fields=name,permanent_url`,
+            `${API_BASE_URL}/attachments/${att.gid}?opt_fields=name,permanent_url,download_url`,
             {
               headers: {
                 Accept: "application/json",
@@ -659,10 +675,10 @@ function Form(): JSX.Element {
           );
           const meta = parseUploadAttachment(metaJson);
 
-          fileLinks.push({
-            name: meta?.name ?? att.name ?? file.name,
-            url: meta?.permanent_url ?? "",
-          });
+       fileLinks.push({
+  name: meta?.name ?? file.name,
+  url: meta?.download_url ?? meta?.permanent_url ?? "",
+});
         }
       }
 
@@ -756,12 +772,11 @@ function Form(): JSX.Element {
       const companyId = pickId(compJson);
       if (!companyId) throw new Error("ไม่พบ id_company ที่ได้จาก /companies");
 
-      // 4.2 create order ตาม swagger
-      // หมายเหตุ: swagger file เป็น string, ถ้าหลายไฟล์ให้รวมเป็นข้อความ
-      const fileText =
-        fileLinks.length > 0
-          ? fileLinks.map((f) => `${f.name}: ${f.url || "-"}`).join("\n")
-          : "";
+     
+     const fileText =
+  fileLinks.length > 0
+    ? JSON.stringify(fileLinks)
+    : "";
 
       await createOrder({
         id_company: companyId,
@@ -793,21 +808,17 @@ function Form(): JSX.Element {
     }
   };
 
-  const showPaperUsed = workType === "หนังสือ" || workType === "อื่นๆ";
+  const showPaperUsed = workType === "สมุดหนังสือที่มีการเข้าเล่ม" || workType === "อื่นๆ";
   const showPasansee =
-    workType === "ฏีกา" || workType === "หนังสือ" || workType === "อื่นๆ";
+    workType === "งานเอกสารธุรการ" || workType === "สมุดหนังสือที่มีการเข้าเล่ม" || workType === "อื่นๆ";
   const showBinding =
-    workType === "ฏีกา" || workType === "หนังสือ" || workType === "อื่นๆ";
+    workType === "งานเอกสารธุรการ" || workType === "สมุดหนังสือที่มีการเข้าเล่ม" || workType === "อื่นๆ";
 
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    // แบบใช้ฟังก์ชัน
-    // clearToken();
 
-    // หรือแบบลบ key ตรง ๆ
-    localStorage.removeItem("admin_token"); // ถ้าคุณใช้ localStorage
-    // sessionStorage.removeItem("admin_token"); // ถ้าคุณเปลี่ยนไปใช้ sessionStorage
+    localStorage.removeItem("admin_token"); 
 
     navigate("/admin/login", { replace: true });
   };
@@ -1147,86 +1158,171 @@ function Form(): JSX.Element {
               </div>
 
               <div className="px-6 pb-6 pt-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-200">
-                <div className="p-6">
-                  <Subtask
-                    projects={
-                      projectsState.status === "success"
-                        ? projectsState.data
-                        : []
-                    }
-                    value={subtasks}
-                    onChange={setSubtasks}
-                    disabled={creating || projectsState.status !== "success"}
-                  />
-                </div>
-                <div className="p-6">
-                  <Details key={detailsKey} files={files} setFiles={setFiles} />
-                </div>
-                <div className="p-6">
-                  <Detail_Type
-                    key={detailsKey}
-                    files={files}
-                    setFiles={setFiles}
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-200">
+                  <div className="p-6">
+                    <Subtask
+                      projects={
+                        projectsState.status === "success"
+                          ? projectsState.data
+                          : []
+                      }
+                      value={subtasks}
+                      onChange={setSubtasks}
+                      disabled={creating || projectsState.status !== "success"}
+                    />
+                  </div>
+                  <div className="p-6">
+                    <Details
+                      key={detailsKey}
+                      files={files}
+                      setFiles={setFiles}
+                    />
+                  </div>
+                  <div className="p-6">
+                    <Detail_Type
+                      key={detailsKey}
+                      files={files}
+                      setFiles={setFiles}
+                    />
+                  </div>
+                  
                 </div>
               </div>
-            </div>
             </div>
           </div>
-           <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 pb-10 disabled:opacity-50 disabled:cursor-not-allowed">
-                <div className="flex justify-end">
+          
+
+          <div className="space-y-4">
+            {/* ===== ตัวเลือกบนหัว ===== */}
+            <div className="flex flex-wrap gap-3">
+              {workTypes.map((t) => {
+                const active = workType === t.name_work;
+
+                return (
                   <button
-                    type="submit"
-                    disabled={creating}
-                    className="rounded-xl bg-slate-900 px-5 py-2.5 text-white text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                    key={t._id}
+                    type="button"
+                    onClick={() => setWorkType(t.name_work)}
+                    className={`px-4 py-2 rounded-xl text-sm font-medium transition
+            ${
+              active
+                ? "border-2 border-slate-900 bg-slate-100"
+                : "border border-slate-300 bg-white hover:border-slate-400"
+            }
+              `}
                   >
-                    {creating ? "กำลังส่ง..." : "ส่งใบสั่งงาน"}
+                    {t.name_work}
                   </button>
+                );
+              })}
                 </div>
 
-                {successOpen && (
-                  <div
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-                    onClick={() => setSuccessOpen(false)}
-                  >
-                    <div
-                      className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
-                      onClick={(ev) => ev.stopPropagation()}
-                    >
-                      <div className="text-lg font-semibold text-slate-900">
-                        สำเร็จ
-                      </div>
-                      <div className="mt-2 text-sm text-slate-700">
-                        {successMessage}
-                      </div>
-
-                      <div className="mt-6 flex justify-end gap-2">
-                        <button
-                          type="button"
-                          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-                          onClick={() => {
-                            setSuccessOpen(false);
-                            resetForm();
-                            window.scrollTo({ top: 0, behavior: "smooth" });
-                          }}
+                {/* ===== กล่องข้อมูล ===== */}
+                <div
+                  className={`mx-4 mb-6 rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden
+                
+                `}
                         >
-                          ตกลง
-                        </button>
-
-                        <PDFDownloadButton
-                          formId="order-form"
-                          formData={formData}
-                          notes={createdNotes}
-                          fileName="order.pdf"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
+              <div className="px-6 pt-6">
+                <h2 className="text-lg sm:text-xl font-semibold flex items-center gap-2 text-slate-800">
+                <ReceiptText className="text-blue-600 w-5 h-5" />
+                รายละเอียดงานเพิ่มเติม
+                </h2>
+                <div className="mt-4 border-b border-slate-200" />
               </div>
-        </form>
+              <div className="mx-10 grid ">
+                  <div>
+                    <Color
+                      selected={selectedColors}
+                      onChange={setSelectedColors}
+                    />
+                  </div>
+                <div>
+                     {showPaperUsed && <Paper_used />}
+                </div>
+                <div>
+                    {showPasansee && <Pasansee />}
+                </div>
+                <div>
+                    {showBinding && <Binding />}
+                </div>
         
+                  <div key={`work-${resetKey}`}>
+                    <TypeOfWork />
+                  </div>
+
+                  <div key={`printer-${resetKey}`}>
+                    <Printer />
+                    </div>
+                  
+                  <div>
+                    <AdditionalDetails
+  value={formData.extra}
+  onChange={(val) =>
+    setFormData((prev) => ({ ...prev, extra: val }))
+  }
+/>
+                  </div>
+                  
+
+              </div>
+                
+
+            </div>
+          </div>
+          <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 pb-10 disabled:opacity-50 disabled:cursor-not-allowed">
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={creating}
+                className="rounded-xl bg-slate-900 px-5 py-2.5 text-white text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {creating ? "กำลังส่ง..." : "ส่งใบสั่งงาน"}
+              </button>
+            </div>
+
+            {successOpen && (
+              <div
+                className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+                onClick={() => setSuccessOpen(false)}
+              >
+                <div
+                  className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+                  onClick={(ev) => ev.stopPropagation()}
+                >
+                  <div className="text-lg font-semibold text-slate-900">
+                    สำเร็จ
+                  </div>
+                  <div className="mt-2 text-sm text-slate-700">
+                    {successMessage}
+                  </div>
+
+                  <div className="mt-6 flex justify-end gap-2">
+                    <button
+                      type="button"
+                      className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                      onClick={() => {
+                        setSuccessOpen(false);
+                        resetForm();
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }}
+                    >
+                      ตกลง
+                    </button>
+
+                    <PDFDownloadButton
+                      formId="order-form"
+                      formData={formData}
+                      notes={createdNotes}
+                      fileName="order.pdf"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </form>
+        {/* )} */}
       </section>
 
       <div className="min-h-screen text-slate-900">

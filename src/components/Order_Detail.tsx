@@ -1,7 +1,7 @@
 import  { useEffect, useMemo, useState, type JSX } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { PDFDownloadLink,PDFViewer } from '@react-pdf/renderer';
-import { dbFetchJson } from "../lib/dbClient"; // ✅ ปรับ path ให้ตรงโปรเจกต์
+import { dbFetchJson } from "../lib/dbClient"; 
 
 import MyPdfDocument from './PDF';
 type GasOrderDetailResp = {
@@ -25,6 +25,14 @@ type GasOrderDetailResp = {
   };
 };
 type FileLink = { name: string; url: string };
+function formatDate(dateStr?: string): string {
+  if (!dateStr) return "-";
+
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr; // กันกรณี parse ไม่ได้
+
+  return d.toLocaleDateString("th-TH"); 
+}
 
 function parseFileLinks(raw: string): FileLink[] {
   const s = (raw || "").trim();
@@ -270,6 +278,7 @@ function hasNoteFlag(notes: string, label: string): boolean {
     const detail_Type = extractNoteValue(order.notes || "", "รูปแบบ:");
     const typeOfWorkText = extractNoteValue(order.notes || "", "ชนิดรูปแบบงาน");
     const printer = extractNoteValue(order.notes || "", "เครื่องพิมพ์");
+    const colors = extractNoteValue(order.notes || "", "สีที่ใช้" ,)
 
     return {
       jobName,
@@ -295,6 +304,7 @@ function hasNoteFlag(notes: string, label: string): boolean {
       detail_Type,
       typeOfWorkText,
       printer,
+      colors,
 
     };
   }, [data]);
@@ -329,8 +339,8 @@ function hasNoteFlag(notes: string, label: string): boolean {
           <div><b>ID งาน:</b> {view.order.ID_Order}</div>
 
           {view.jobName && <div><b>ชื่องาน:</b> {view.jobName}</div>}
-          <div><b>วันสั่งงาน:</b> {view.order.startDate || "-"}</div>
-          <div><b>วันรับงาน:</b> {view.order.endDate || "-"}</div>
+          <div><b>วันสั่งงาน:</b> {formatDate(view.order.startDate)}</div>
+<div><b>วันรับงาน:</b> {formatDate(view.order.endDate)}</div>
 
           <hr className="my-2" />
 
@@ -342,7 +352,7 @@ function hasNoteFlag(notes: string, label: string): boolean {
 
           <hr className="my-2" />
 
-            <div>
+            <div>  
               <b>ประเภทงาน:</b> {view.workTypeFromNotes || view.order.projectName || "-"}
             </div>
 
@@ -388,8 +398,8 @@ function hasNoteFlag(notes: string, label: string): boolean {
                     address={view.order.address}
                     email={data.order?.email || "-"}
                     companyName={data.user.companyName || "-"}
-                    orderDate={data.order?.startDate || "-"}
-                    dueDate={data.order?.endDate || "-"}
+                    orderDate={formatDate(data.order?.startDate)}
+                    dueDate={formatDate(data.order?.endDate)}
                     jobName={view.jobName || "-"}
                     phone={view.order.phone}
                     line={view.order.line || "-"}
@@ -414,6 +424,8 @@ function hasNoteFlag(notes: string, label: string): boolean {
                     detail_Type={view.detail_Type || "-"}
                     typeOfWorkText={view.typeOfWorkText || "-"}
                     printer={view.printer || "-"}
+                    colors={view.colors || "-"}
+                    
                    
                   />
 
@@ -437,8 +449,8 @@ function hasNoteFlag(notes: string, label: string): boolean {
                             phone={view.order.phone}
                             email={data.order?.email || "-"}
                             companyName={data.user.companyName || "-"}
-                            orderDate={data.order?.startDate || "-"}
-                            dueDate={data.order?.endDate || "-"}
+                           orderDate={formatDate(data.order?.startDate)}
+                            dueDate={formatDate(data.order?.endDate)}
                             jobName={view.jobName || "-"}
                             line={view.order.line || "-"}
                             workTypeFromNotes={view.workTypeFromNotes || "-"}
@@ -462,6 +474,7 @@ function hasNoteFlag(notes: string, label: string): boolean {
                             detail_Type={view.detail_Type || "-"}
                             typeOfWorkText={view.typeOfWorkText || "-"}
                             printer={view.printer || "-"}
+                            colors={view.colors || "-"}
                           
                           />
                         </PDFViewer>
