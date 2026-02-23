@@ -1,21 +1,30 @@
-import { Printer } from "lucide-react";
-import SearchBox from "./Search_Box";
-import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { Printer, LayoutDashboard, FileText, LogOut } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
 
 function Nav() {
   const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
-
-  // ✅ อ่านจาก localStorage ตรง ๆ
+  const location = useLocation();
   const role = localStorage.getItem("role");
 
-  return (
-    <nav className="bg-white border-b border-slate-200 px-8 py-4 flex justify-between items-center sticky top-0 z-40">
 
-      {/* LEFT */}
+    const handleLogout = () => {
+
+    localStorage.removeItem("admin_token"); 
+
+    navigate("/admin/login", { replace: true });
+  };
+
+  const isActive = (path: string) =>
+    location.pathname === path
+      ? "bg-indigo-100 text-indigo-700"
+      : "text-slate-600 hover:bg-slate-100";
+
+  return (
+    <aside className="fixed left-0 top-0 h-screen w-64 bg-white border-r border-slate-200 flex flex-col p-6">
+
+      {/* LOGO */}
       <div
-        className="flex items-center gap-3 cursor-pointer"
+        className="flex items-center gap-3 cursor-pointer mb-10"
         onClick={() => navigate("/form")}
       >
         <div className="bg-indigo-600 p-2 rounded-xl">
@@ -29,45 +38,51 @@ function Nav() {
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
-        <SearchBox />
+      {/* MENU */}
+      <div className="flex flex-col gap-2">
+
+        <button
+          onClick={() => navigate("/form")}
+          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${isActive("/form")}`}
+        >
+          <FileText size={16} />
+          ฟอร์ม
+        </button>
 
         {role === "SuperAdmin" && (
-          <div className="relative">
-            <button
-              onClick={() => setOpen(!open)}
-              className="px-3 py-2 rounded-lg bg-slate-800 text-white text-sm"
-            >
-              จัดการ ▾
-            </button>
-
-            {open && (
-              <div className="absolute right-0 mt-2 w-40 bg-white border rounded-lg shadow-lg">
-                <button
-                  onClick={() => {
-                    navigate("/form");
-                    setOpen(false);
-                  }}
-                  className="block w-full text-left px-4 py-2 text-sm hover:bg-slate-100"
-                >
-                  ไปหน้าฟอร์ม
-                </button>
-
-                <button
-                  onClick={() => {
-                    navigate("/super-admin");
-                    setOpen(false);
-                  }}
-                  className="block w-full text-left px-4 py-2 text-sm hover:bg-slate-100"
-                >
-                  จัดการระบบ
-                </button>
-              </div>
-            )}
-          </div>
+          <button
+            onClick={() => navigate("/super-admin")}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${isActive("/super-admin")}`}
+          >
+            <LayoutDashboard size={16} />
+            จัดการระบบ
+          </button>
         )}
+
       </div>
-    </nav>
+      
+
+      {/* 🔥 LOGOUT อยู่ล่างสุด */}
+      <div className="mt-auto pt-6">
+      
+      <div className=" border-t border-slate-200">
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm text-rose-600 hover:bg-rose-50"
+        >
+          <LogOut size={16} />
+          ออกจากระบบ
+        </button>
+      </div>
+        <div className="mt-2 mb-0 text-xs text-slate-400 text-center ">
+        Role: {role}
+      </div>
+    
+      
+          
+      </div>
+
+    </aside>
   );
 }
 

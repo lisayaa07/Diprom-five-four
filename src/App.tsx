@@ -23,7 +23,7 @@ export default function App() {
       )}
 
       {/* ดัน content ลงมา ไม่ให้โดน nav บัง */}
-      <div className={!hideNav ? "pt-20" : ""}>
+     <div className={!hideNav ? "ml-64 p-8" : ""}>
         <Routes>
           
           <Route path="/" element={<Navigate to="/admin/login" replace />} />

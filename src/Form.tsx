@@ -814,14 +814,6 @@ if (selectedColors.length > 0) {
   const showBinding =
     workType === "งานเอกสารธุรการ" || workType === "สมุดหนังสือที่มีการเข้าเล่ม" || workType === "อื่นๆ";
 
-  const navigate = useNavigate();
-
-  const handleLogout = () => {
-
-    localStorage.removeItem("admin_token"); 
-
-    navigate("/admin/login", { replace: true });
-  };
 
   return (
     <>
@@ -945,9 +937,8 @@ if (selectedColors.length > 0) {
               </div>
             </div>
             {/* แถวที่ 2 */}
-            <div className="px-6 pb-4 pt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* 🔹 LEFT SIDE (2x2 GRID) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="px-6 pb-4 pt-4 grid grid-cols-1 lg:grid-cols-4 gap-4">
+              
                 {/* EMAIL */}
                 <div className="space-y-1">
                   <label className="text-sm  text-slate-700">
@@ -981,27 +972,8 @@ if (selectedColors.length > 0) {
                   />
                 </div>
 
-                {/* ประเภทงาน */}
-                <div className="space-y-1">
-                  <label className="text-sm  text-slate-800">ประเภทงาน</label>
-                  <select
-                    value={workType}
-                    onChange={(e) => setWorkType(e.target.value)}
-                    disabled={workTypesLoading || workTypes.length === 0}
-                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-100 disabled:opacity-60"
-                  >
-                    <option value="" disabled>
-                      {workTypesLoading ? "กำลังโหลด..." : "เลือกประเภทงาน"}
-                    </option>
-
-                    {workTypes.map((t) => (
-                      <option key={t._id} value={t.name_work}>
-                        {t.name_work}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
+            
+               
                 {/* PROJECT */}
                 <div className="space-y-1">
                   <label className="text-sm  text-slate-800">
@@ -1030,9 +1002,7 @@ if (selectedColors.length > 0) {
                     <p className="text-xs text-rose-600">{errors.project}</p>
                   )}
                 </div>
-              </div>
-
-              {/* 🔹 RIGHT SIDE (ADDRESS) */}
+                 {/* 🔹 RIGHT SIDE (ADDRESS) */}
               <div className="space-y-1">
                 <label className="text-sm  text-slate-800">
                   ที่อยู่ <span className="text-rose-600">*</span>
@@ -1053,8 +1023,11 @@ if (selectedColors.length > 0) {
                   <p className="text-xs text-rose-600">{errors.address}</p>
                 )}
               </div>
+              </div>
+
+             
             </div>
-          </div>
+         
           <div className="mx-4 mb-6 rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
             {/* HEADER */}
             <div className="px-6 pt-6">
@@ -1326,17 +1299,7 @@ if (selectedColors.length > 0) {
       </section>
 
       <div className="min-h-screen text-slate-900">
-        <header className="mx-auto max-w-3xl px-4 py-10">
-          <div className="flex items-center justify-between">
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="ml-4 shrink-0 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50"
-            >
-              ออกจากระบบ
-            </button>
-          </div>
-        </header>
+       
 
         {/* <header className="mx-auto max-w-3xl px-4 py-10 text-center text-4xl">
           <h2>ใบสั่งพิมพ์งาน</h2>

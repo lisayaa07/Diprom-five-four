@@ -1,8 +1,7 @@
 // src/SuperAdmin.tsx
 import { useEffect, useMemo, useState } from "react";
 import axios from "./lib/axios"; // 👈 ใช้ instance
-import { clearToken } from "./lib/Auth";
-import { useNavigate } from "react-router-dom";
+
 
 type MasterItem = { _id: string; [k: string]: any };
 
@@ -17,7 +16,7 @@ type ResourceConf = {
 };
 
 export default function SuperAdmin() {
-  const nav = useNavigate();
+
 
   const resources: ResourceConf[] = useMemo(
     () => [
@@ -134,18 +133,7 @@ export default function SuperAdmin() {
           </div>
         </div>
 
-        <div className="flex gap-2">
-         
-          <button
-            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
-            onClick={() => {
-              clearToken();
-              nav("/admin/login", { replace: true });
-            }}
-          >
-            ออกจากระบบ
-          </button>
-        </div>
+       
       </header>
 
       <main className="mx-auto max-w-5xl px-6 pb-10">
