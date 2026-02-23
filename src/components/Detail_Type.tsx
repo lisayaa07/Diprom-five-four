@@ -11,7 +11,7 @@ function Detail_Type({ files, setFiles }: DetailsProps) {
         <>
         <div className="p-2 text-base sm:text-sm text-slate-800">
         <label className="font-bold">รูปแบบ</label>
-        <div className="p-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-base sm:text-sm text-slate-800">
+        <div className="p-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4 text-base sm:text-sm text-slate-800">
           <label className="flex items-center gap-2 cursor-pointer ">
             <input type="checkbox" name="Detail_Type" value="ตามตัวอย่าง" className="h-4 w-4" />
             <span className="text-base sm:text-sm text-slate-800 ">ตามตัวอย่าง</span>

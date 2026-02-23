@@ -79,7 +79,7 @@ export default function Printer() {
         <div className="mt-2 text-sm text-slate-500">ไม่มีรายการเครื่องพิมพ์ในระบบ</div>
       )}
 
-      <div className="p-2 grid grid-cols-2 md:grid-cols-3 gap-4 items-center text-base sm:text-sm text-slate-800">
+      <div className="p-2 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 items-center text-base sm:text-sm text-slate-800">
         {items.map((p) => (
           <label key={p._id} className="flex items-center gap-2 cursor-pointer">
             <input

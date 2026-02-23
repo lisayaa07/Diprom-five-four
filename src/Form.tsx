@@ -14,6 +14,7 @@ import { useNavigate } from "react-router-dom";
 import Detail_Type from "./components/Detail_Type";
 import Color from "./components/Color";
 import AdditionalDetails from "./components/Notes";
+import SearchBox from "./components/Search_Box";
 
 const TOKEN_KEY = "admin_token"; // ให้ตรงกับตอน login เก็บไว้
 type WorkTypeDoc = { _id: string; name_work: string };
@@ -835,6 +836,7 @@ if (selectedColors.length > 0) {
           )} */}
 
         {/* {projectsState.status === "success" && ( */}
+         <SearchBox  />
         <form
           id="order-form"
           onSubmit={handleSubmit}
@@ -842,6 +844,7 @@ if (selectedColors.length > 0) {
           noValidate
           className="  px-2 sm:px-6"
         >
+          
           {/* {formError && (
                 <div className="rounded-xl border border-rose-200 bg-rose-50 p-1 text-sm text-rose-700">
                   {formError}
@@ -849,6 +852,7 @@ if (selectedColors.length > 0) {
               )} */}
 
           <div className="mx-4 mb-6 rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+           
             {/* HEADER */}
             <div className="px-6 pt-6">
               <h2 className="text-lg sm:text-xl font-semibold flex items-center gap-2 text-slate-800">
@@ -859,7 +863,7 @@ if (selectedColors.length > 0) {
             </div>
 
             {/* FORM GRID */}
-            <div className="px-6 pb-2 pt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="px-6 pb-2 pt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {/* tax */}
               <div className="space-y-1">
                 <label className="text-sm  text-slate-700">TAX</label>
@@ -913,7 +917,11 @@ if (selectedColors.length > 0) {
               </div>
 
               {/* PHONE */}
-              <div className="space-y-1">
+             
+            </div>
+            {/* แถวที่ 2 */}
+            <div className="px-6 pb-4 pt-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
+               <div className="space-y-1">
                 <label className="text-sm  text-slate-700">
                   โทร <span className="text-rose-600">*</span>
                 </label>
@@ -935,9 +943,6 @@ if (selectedColors.length > 0) {
                   <p className="text-xs text-rose-600">{errors.phoneNumber}</p>
                 )}
               </div>
-            </div>
-            {/* แถวที่ 2 */}
-            <div className="px-6 pb-4 pt-4 grid grid-cols-1 lg:grid-cols-4 gap-4">
               
                 {/* EMAIL */}
                 <div className="space-y-1">
@@ -974,7 +979,30 @@ if (selectedColors.length > 0) {
 
             
                
-                {/* PROJECT */}
+               
+                 {/* 🔹 RIGHT SIDE (ADDRESS) */}
+              <div className="space-y-1">
+                <label className="text-sm  text-slate-800">
+                  ที่อยู่ <span className="text-rose-600">*</span>
+                </label>
+                <textarea
+                  name="address"
+                  value={formData.address}
+                  onChange={handleChange}
+                  rows={6}
+                  className={`w-full rounded-2xl px-3 py-2 text-sm outline-none resize-none transition
+                  ${
+                    errors.address
+                      ? "border border-rose-500 focus:ring-2 focus:ring-rose-200"
+                      : "border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-100"
+                  }`}
+                />
+                {errors.address && (
+                  <p className="text-xs text-rose-600">{errors.address}</p>
+                )}
+              </div>
+
+               {/* PROJECT */}
                 <div className="space-y-1">
                   <label className="text-sm  text-slate-800">
                     Project <span className="text-rose-600">*</span>
@@ -1002,27 +1030,6 @@ if (selectedColors.length > 0) {
                     <p className="text-xs text-rose-600">{errors.project}</p>
                   )}
                 </div>
-                 {/* 🔹 RIGHT SIDE (ADDRESS) */}
-              <div className="space-y-1">
-                <label className="text-sm  text-slate-800">
-                  ที่อยู่ <span className="text-rose-600">*</span>
-                </label>
-                <textarea
-                  name="address"
-                  value={formData.address}
-                  onChange={handleChange}
-                  rows={6}
-                  className={`w-full rounded-2xl px-3 py-2 text-sm outline-none resize-none transition
-                  ${
-                    errors.address
-                      ? "border border-rose-500 focus:ring-2 focus:ring-rose-200"
-                      : "border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-100"
-                  }`}
-                />
-                {errors.address && (
-                  <p className="text-xs text-rose-600">{errors.address}</p>
-                )}
-              </div>
               </div>
 
              
