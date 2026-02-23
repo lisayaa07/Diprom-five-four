@@ -122,6 +122,7 @@ export default function SuperAdmin() {
       setLoading(false);
     }
   };
+  console.log("ROLE:", localStorage.getItem("role"));
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -134,12 +135,7 @@ export default function SuperAdmin() {
         </div>
 
         <div className="flex gap-2">
-          <button
-            className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm"
-            onClick={() => nav("/form")}
-          >
-            ไปหน้า Form
-          </button>
+         
           <button
             className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
             onClick={() => {
@@ -241,6 +237,7 @@ export default function SuperAdmin() {
             </ul>
           )}
         </div>
+        
       </main>
     </div>
   );

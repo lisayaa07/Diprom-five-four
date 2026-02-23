@@ -12,7 +12,6 @@ export default function AdminLogin() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  // ถ้า login อยู่แล้ว → ส่งไปหน้าตาม role ทันที
   useEffect(() => {
     if (!isLoggedIn()) return;
     const role = getRole();
@@ -26,19 +25,34 @@ export default function AdminLogin() {
     try {
       setSubmitting(true);
 
-      const res = await axiosInstance.post("/auth/login",{
-        user_name: userName.trim(), // ✅ สำคัญ
+      // ✅ await ต้องอยู่ใน async function
+      const res = await axiosInstance.post("/auth/login", {
+        user_name: userName.trim(),
         password: password,
+      });
 
-      })
+      const token =
+        res.data?.access_token ||
+        res.data?.token ||
+        res.data?.data?.access_token ||
+        res.data?.data?.token;
 
-      const token = res.data?.access_token || res.data?.token || res.data?.data?.access_token || res.data?.data?.token;
-       if (!token) throw new Error("Login สำเร็จแต่ไม่พบ token ใน response");
-       setToken(token);
+      if (!token) throw new Error("Login สำเร็จแต่ไม่พบ token");
 
+      setToken(token);
 
-      const role = getRole();
-      nav(role === "SuperAdmin" ? "/super-admin" : "/form", { replace: true });
+      // ✅ ดึง role จาก backend หรือแยกจาก username
+      const role =
+        res.data?.role ||
+        res.data?.data?.role ||
+        (userName === "SuperAdmin" ? "SuperAdmin" : "Admin");
+
+      localStorage.setItem("role", role);
+
+      nav(role === "SuperAdmin" ? "/super-admin" : "/form", {
+        replace: true,
+      });
+
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
