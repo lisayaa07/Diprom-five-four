@@ -56,7 +56,7 @@ export default function Color({ selected, onChange }: Props) {
       {/* กล่องเลือก */}
       <div
         onClick={() => setOpen(!open)}
-        className="w-xl border border-slate-300 rounded-xl px-3 py-2 text-sm cursor-pointer bg-white"
+        className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm cursor-pointer bg-white"
       >
         {selected.length === 0 ? (
           <span className="text-slate-400">เลือกสี</span>
@@ -78,7 +78,7 @@ export default function Color({ selected, onChange }: Props) {
       {open && (
         <div
   className={`
-    absolute z-50 mt-1 w-xl bg-white border border-slate-200
+    w-full absolute z-50 mt-1  bg-white border border-slate-200
     rounded-xl shadow-lg overflow-y-auto
     ${colors.length > 5 ? "max-h-48" : ""}
   `}

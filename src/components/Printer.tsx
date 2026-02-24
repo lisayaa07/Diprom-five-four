@@ -63,7 +63,7 @@ export default function Printer() {
 
   return (
     <>
-      <label>เครื่องพิมพ์</label>
+      <label className="font-bold">เครื่องพิมพ์</label>
 
       {loading && (
         <div className="mt-2 text-sm text-slate-500">กำลังโหลดรายการเครื่องพิมพ์...</div>
