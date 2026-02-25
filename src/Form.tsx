@@ -1189,80 +1189,61 @@ function Form(): JSX.Element {
                       </ul>
                     </div>
                   </div>
+
                   <div className="space-y-2 md:col-span-3 lg:col-span-3">
-                    <Detail_Type
-                      key={detailsKey}
-                      files={files}
-                      setFiles={setFiles}
-                    />
+                    {showPaperUsed && <Paper_used />}
                   </div>
                   <div className="space-y-2 md:col-span-3 lg:col-span-3">
                     <div className="space-y-2">
-                      <div key={`printer-${resetKey}`}>
-                        <Printer />
-                      </div>
+                      {showPasansee && <Pasansee />}
                     </div>
                   </div>
-                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-  {/* LEFT เล็ก */}
-  <div className="md:col-span-1 space-y-2">
-    <Color
-      selected={selectedColors}
-      onChange={setSelectedColors}
-    />
-  </div>
 
-  {/* RIGHT ใหญ่ */}
-  <div className="md:col-span-2 space-y-2">
-    {showPaperUsed && <Paper_used />}
-  </div>
-</div>
+                  <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
+                    {showBinding && <Binding />}
+                  </div>
+                  <div
+                    key={`work-${resetKey}`}
+                    className="grid grid-cols-1 md:grid-cols-1 gap-6"
+                  >
+                    <TypeOfWork />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    {/* RIGHT ใหญ่ */}
+                    <div className="md:col-span-2 space-y-2">
+                      <Detail_Type
+                        key={detailsKey}
+                        files={files}
+                        setFiles={setFiles}
+                      />
+                    </div>
+                    <div className="md:col-span-2 space-y-2 ">
+                      <Color
+                        selected={selectedColors}
+                        onChange={setSelectedColors}
+                      />
+                    </div>
+                  </div>
+                  <div
+                    key={`printer-${resetKey}`}
+                    className="grid grid-cols-1 md:grid-cols-1 gap-6"
+                  >
+                    <Printer />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
+                    <AdditionalDetails
+                      value={formData.extra}
+                      onChange={(val) =>
+                        setFormData((prev) => ({ ...prev, extra: val }))
+                      }
+                    />
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="space-y-4">
-            {/* ===== ตัวเลือกบนหัว ===== */}
-
-            {/* ===== กล่องข้อมูล ===== */}
-            <div
-              className={`mx-4 mb-6 rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden
-                
-                `}
-            >
-              <div className="px-6 pt-6">
-                <h2 className="text-lg sm:text-xl font-semibold flex items-center gap-2 text-slate-800">
-                  <ReceiptText className="text-blue-600 w-5 h-5" />
-                  รายละเอียดงานเพิ่มเติม
-                </h2>
-                <div className="mt-4 border-b border-slate-200" />
-              </div>
-              <div className="mx-10 grid ">
-                <div></div>
-                
-                <div>{showPasansee && <Pasansee />}</div>
-                <div>{showBinding && <Binding />}</div>
-
-                <div key={`work-${resetKey}`}>
-                  <TypeOfWork />
-                </div>
-
-                <div key={`printer-${resetKey}`}>
-                  <Printer />
-                </div>
-
-                <div>
-                  <AdditionalDetails
-                    value={formData.extra}
-                    onChange={(val) =>
-                      setFormData((prev) => ({ ...prev, extra: val }))
-                    }
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
           <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 pb-10 disabled:opacity-50 disabled:cursor-not-allowed">
             <div className="flex justify-end">
               <button

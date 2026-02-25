@@ -1,123 +1,55 @@
-function TypeOfWork(){
-    return(
-        <>
-        <label>ชนิดรูปแบบงาน</label>
-        <div className=" p-2 grid grid-cols-2 md:grid-cols-3 gap-4 items-center text-base sm:text-sm text-slate-800">
-            <label className="flex items-center gap-2 cursor-pointer ">
-              <input
-                type="checkbox"
-                name="type_of_work"
-                value="วานิชด้าน"
-                className="h-4 w-4"
-              />
-              <span className="text-base sm:text-sm text-slate-800 ">วานิชด้าน</span>
-            </label>
+function TypeOfWork() {
+  return (
+    <>
+      <label className="block font-medium text-slate-800">
+        ชนิดรูปแบบงาน
+      </label>
 
-            <label className="flex items-center gap-2 cursor-pointer ">
-              <input
-                type="checkbox"
-                name="type_of_work"
-                value="วานิชงาน"
-                className="h-4 w-4"
-              />
-              <span className="text-base sm:text-sm text-slate-800">วานิชงาน</span>
-            </label>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-y-2 gap-x-4 text-sm text-slate-800">
 
-             <label className="flex items-center gap-2 cursor-pointer ">
-              <input
-                type="checkbox"
-                name="type_of_work"
-                value="Dicut"
-                className="h-4 w-4"
-              />
-              <span className="text-base sm:text-sm text-slate-800 ">Dicut</span>
-            </label>
-
-            <label className="flex items-center gap-2 cursor-pointer ">
-              <input
-                type="checkbox"
-                name="type_of_work"
-                value="ปั๊มนูน"
-                className="h-4 w-4"
-              />
-              <span className="text-base sm:text-sm text-slate-800 ">ปั๊มนูน</span>
-            </label>
-
-            <label className="flex items-center gap-2 cursor-pointer ">
-              <input
-                type="checkbox"
-                name="type_of_work"
-                value="ปั๊มฟอล์ย"
-                className="h-4 w-4"
-              />
-              <span className="text-base sm:text-sm text-slate-800">ปั๊มฟอล์ย</span>
-            </label>
-
-             <label className="flex items-center gap-2 cursor-pointer ">
-              <input
-                type="checkbox"
-                name="type_of_work"
-                value="เคลือบ UV ทั้งหน้า"
-                className="h-4 w-4"
-              />
-              <span className="text-base sm:text-sm text-slate-800 ">เคลือบ UV ทั้งหน้า</span>
-            </label>
-
-            <label className="flex items-center gap-2 cursor-pointer ">
-              <input
-                type="checkbox"
-                name="type_of_work"
-                value="spot UV"
-                className="h-4 w-4"
-              />
-              <span className="text-base sm:text-sm text-slate-800 ">spot UV</span>
-            </label>
-
-            <label className="flex items-center gap-2 cursor-pointer ">
-              <input
-                type="checkbox"
-                name="type_of_work"
-                value="ลามิเนตมัน"
-                className="h-4 w-4"
-              />
-              <span className="text-base sm:text-sm text-slate-800">ลามิเนตมัน</span>
-            </label>
-
-             <label className="flex items-center gap-2 cursor-pointer ">
-              <input
-                type="checkbox"
-                name="type_of_work"
-                value="ลามิเนตด้าน"
-                className="h-4 w-4"
-              />
-              <span className="text-base sm:text-sm text-slate-800 ">ลามิเนตด้าน</span>
-            </label>
-            
-             
-        </div>
-        <div className=" p-2 grid items-center text-base sm:text-sm text-slate-800">
-
-        
-        <label className="flex items-center gap-2 cursor-pointer ">
-              <input
-                type="checkbox"
-                name="type_of_work"
-                value="อื่นๆ"
-                className="peer h-4 w-4"
-              />
-              <span className="text-base sm:text-sm text-slate-800 cursor-pointer ">อื่นๆ</span>
-              <div className=" pointer-events-none peer-checked:opacity-100 peer-checked:pointer-events-auto">
+        {[
+          "วานิชด้าน",
+          "วานิชงาน",
+          "Dicut",
+          "ปั๊มนูน",
+          "ปั๊มฟอล์ย",
+          "เคลือบ UV ทั้งหน้า",
+          "spot UV",
+          "ลามิเนตมัน",
+          "ลามิเนตด้าน",
+        ].map((item) => (
+          <label key={item} className="flex items-center gap-2 cursor-pointer">
             <input
-              type="text"
-              name="other_type_of_work"
-              className=" rounded-xl border border-slate-300 bg-white px-3 py-1 text-base sm:text-sm outline-none focus:border-slate-900"
+              type="checkbox"
+              name="type_of_work"
+              value={item}
+              className="h-4 w-4"
             />
-          </div>
-            </label>
-            
-          </div>
-            <hr className="my-6 border-slate-200" />
-        </>
-    )
+            <span>{item}</span>
+          </label>
+        ))}
+
+        {/* อื่นๆ */}
+        <label className="flex items-center gap-2 cursor-pointer col-span-2 md:col-span-4">
+          <input
+            type="checkbox"
+            name="type_of_work"
+            value="อื่นๆ"
+            className="peer h-4 w-4"
+          />
+          <span>อื่นๆ</span>
+
+          <input
+            type="text"
+            name="other_type_of_work"
+            placeholder="ระบุเพิ่มเติม..."
+            className="ml-3 hidden peer-checked:block rounded-xl border border-slate-300 px-3 py-1 text-sm outline-none focus:border-slate-900"
+          />
+        </label>
+
+      </div>
+    </>
+  );
 }
-export default TypeOfWork
+
+export default TypeOfWork;
