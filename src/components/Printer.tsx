@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import axios from "../lib/axios";
-const DB_API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
+
 
 type PrinterDoc = {
   _id: string;
@@ -9,25 +9,9 @@ type PrinterDoc = {
   updatedAt?: string;
 };
 
-async function safeReadJson(res: Response) {
-  const text = await res.text();
-  if (!text) return null;
-  try {
-    return JSON.parse(text);
-  } catch {
-    return { raw: text };
-  }
-}
 
-async function fetchJsonOrThrow<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, init);
-  const json = await safeReadJson(res);
 
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status}\n${JSON.stringify(json, null, 2)}`);
-  }
-  return json as T;
-}
+
 
 export default function Printer() {
   const [items, setItems] = useState<PrinterDoc[]>([]);

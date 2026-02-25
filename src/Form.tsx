@@ -10,6 +10,7 @@ import Printer from "./components/Printer";
 import { useSearchParams } from "react-router-dom";
 import { API_BASE_URL } from "./config";
 import PDFDownloadButton from "./components/PDFDownloadLink";
+// import { useNavigate } from "react-router-dom";
 import Detail_Type from "./components/Detail_Type";
 import Color from "./components/Color";
 import AdditionalDetails from "./components/Notes";
