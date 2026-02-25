@@ -1,7 +1,7 @@
 function Paper_used() {
   return (
     <>
-      <p>กระดาษที่ใช้</p>
+      <p className="font-bold">กระดาษที่ใช้</p>
       <div className=" grid grid-cols-2 md:grid-cols-2 gap-8 p-2 text-base sm:text-sm">
         <div>
           <label>หนังสือ ปก</label>
@@ -44,7 +44,7 @@ function Paper_used() {
           <span className="text-base sm:text-sm text-slate-800">คาร์บอน</span>
         </label>
       </div>
-       <hr className="my-6 border-slate-200" />
+      
     </>
   );
 }

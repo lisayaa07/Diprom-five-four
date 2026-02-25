@@ -14,7 +14,7 @@ export default function Details({ setFiles }: DetailsProps) {
     <>
       
 
-      <div className="space-y-4">
+      <div className="space-y-4 mt-2">
         <button
           type="button"
           onClick={() => calcRef.current?.open()}
@@ -30,7 +30,7 @@ export default function Details({ setFiles }: DetailsProps) {
           />
       </div>
 
-      <div className=" p-2 grid grid-cols-2 md:grid-cols-2 gap-4 items-center text-base sm:text-sm text-slate-800">
+      <div className="  grid lg:grid-cols-4 md:grid-cols-2 gap-4 items-center text-base sm:text-sm text-slate-800">
         <div>
           <label>ขนาดสำเร็จ</label>
           <input
@@ -47,9 +47,9 @@ export default function Details({ setFiles }: DetailsProps) {
             className="mt-2 m-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base sm:text-sm outline-none focus:border-slate-900"
           />
         </div>
-      </div>
+      
 
-      <div className=" p-2 grid grid-cols-2 md:grid-cols-2 gap-4 items-center text-base sm:text-sm text-slate-800">
+      
         <div>
           <label className="whitespace-nowrap">ขนาดตัดกระดาษ</label>
           <input
@@ -67,6 +67,7 @@ export default function Details({ setFiles }: DetailsProps) {
           />
         </div>
       </div>
+      
 
      
 

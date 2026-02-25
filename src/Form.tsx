@@ -1,5 +1,5 @@
 import React, { useEffect, useState, type FormEvent, type JSX } from "react";
-import { User, ReceiptText } from "lucide-react";
+import {  ReceiptText } from "lucide-react";
 import Paper_used from "./components/Paper_used";
 import Pasansee from "./components/Pasansee";
 import Binding from "./components/Binding";
@@ -7,12 +7,15 @@ import Details from "./components/Details";
 import Subtask, { type SubtaskDraft } from "./components/Subtask";
 import TypeOfWork from "./components/TypeOfWork";
 import Printer from "./components/Printer";
-import SearchBox from "./components/Search_Box";
 import { useSearchParams } from "react-router-dom";
 import { API_BASE_URL } from "./config";
 import PDFDownloadButton from "./components/PDFDownloadLink";
-import { useNavigate } from "react-router-dom";
+// import { useNavigate } from "react-router-dom";
 import Detail_Type from "./components/Detail_Type";
+import Color from "./components/Color";
+import AdditionalDetails from "./components/Notes";
+import SearchBox from "./components/Search_Box";
+import FileUpload from "./components/File";
 
 const TOKEN_KEY = "admin_token"; // ให้ตรงกับตอน login เก็บไว้
 type WorkTypeDoc = { _id: string; name_work: string };
@@ -65,6 +68,7 @@ type AsanaAttachment = {
   gid: string;
   name: string;
   permanent_url?: string;
+  download_url?: string;
 };
 
 const parseUploadAttachment = (j: unknown): AsanaAttachment | null => {
@@ -220,14 +224,16 @@ function Form(): JSX.Element {
   const [successOpen, setSuccessOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState("ส่งใบสั่งพิมพ์สำเร็จ");
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [formError, setFormError] = useState<string>("");
+  const [, setFormError] = useState<string>("");
   const [workType, setWorkType] = useState<string>("");
   const [detailsKey, setDetailsKey] = useState(0);
   const [resetKey, setResetKey] = useState(0);
   const [createdNotes, setCreatedNotes] = useState<string>("");
   const [workTypes, setWorkTypes] = useState<WorkTypeDoc[]>([]);
-  const [workTypesLoading, setWorkTypesLoading] = useState(false);
+  const [, setWorkTypesLoading] = useState(false);
+  const [detailType, setDetailType] = useState<string[]>([]);
   const [, setWorkTypesError] = useState("");
+  const [selectedColors, setSelectedColors] = useState<string[]>([]);
 
   useEffect(() => {
     const run = async () => {
@@ -281,7 +287,8 @@ function Form(): JSX.Element {
     setSubtasks([]);
     setFiles([]);
     setResetKey((prev) => prev + 1);
-
+    setSelectedColors([]);
+  setDetailType([]);
     setErrors({});
     setFormError("");
     setDetailsKey((prev) => prev + 1);
@@ -524,8 +531,9 @@ function Form(): JSX.Element {
         lines.push(pos ? `ปรุ: ${pos}` : "ปรุ");
       }
 
-      if (formData.extra.trim())
-        lines.push(`เพิ่มเติม: ${formData.extra.trim()}`);
+      if (selectedColors.length > 0) {
+        lines.push(`สีที่ใช้: ${selectedColors.join(", ")}`);
+      }
 
       // --- รันนัมเบอร์ ---
       if (checked("bind_run_enabled")) {
@@ -578,6 +586,12 @@ function Form(): JSX.Element {
       // เครื่องพิมพ์
       const printer = getAllStr("printer");
       if (printer.length > 0) lines.push(`เครื่องพิมพ์: ${printer.join(", ")}`);
+
+      if (formData.extra.trim()) {
+        lines.push("");
+        lines.push("📌 ข้อมูลเพิ่มเติม");
+        lines.push(formData.extra.trim());
+      }
 
       const notes = lines.join("\n");
       setCreatedNotes(notes);
@@ -649,7 +663,7 @@ function Form(): JSX.Element {
           }
 
           const metaJson = await fetchJsonOrThrow(
-            `${API_BASE_URL}/attachments/${att.gid}?opt_fields=name,permanent_url`,
+            `${API_BASE_URL}/attachments/${att.gid}?opt_fields=name,permanent_url,download_url`,
             {
               headers: {
                 Accept: "application/json",
@@ -660,8 +674,8 @@ function Form(): JSX.Element {
           const meta = parseUploadAttachment(metaJson);
 
           fileLinks.push({
-            name: meta?.name ?? att.name ?? file.name,
-            url: meta?.permanent_url ?? "",
+            name: meta?.name ?? file.name,
+            url: meta?.download_url ?? meta?.permanent_url ?? "",
           });
         }
       }
@@ -756,12 +770,7 @@ function Form(): JSX.Element {
       const companyId = pickId(compJson);
       if (!companyId) throw new Error("ไม่พบ id_company ที่ได้จาก /companies");
 
-      // 4.2 create order ตาม swagger
-      // หมายเหตุ: swagger file เป็น string, ถ้าหลายไฟล์ให้รวมเป็นข้อความ
-      const fileText =
-        fileLinks.length > 0
-          ? fileLinks.map((f) => `${f.name}: ${f.url || "-"}`).join("\n")
-          : "";
+      const fileText = fileLinks.length > 0 ? JSON.stringify(fileLinks) : "";
 
       await createOrder({
         id_company: companyId,
@@ -793,31 +802,19 @@ function Form(): JSX.Element {
     }
   };
 
-  const showPaperUsed = workType === "หนังสือ" || workType === "อื่นๆ";
+  const showPaperUsed =
+    workType === "สมุดหนังสือที่มีการเข้าเล่ม" || workType === "อื่นๆ";
   const showPasansee =
-    workType === "ฏีกา" || workType === "หนังสือ" || workType === "อื่นๆ";
+    workType === "งานเอกสารธุรการ" ||
+    workType === "สมุดหนังสือที่มีการเข้าเล่ม" ||
+    workType === "อื่นๆ";
   const showBinding =
-    workType === "ฏีกา" || workType === "หนังสือ" || workType === "อื่นๆ";
-
-  const navigate = useNavigate();
-
-  const handleLogout = () => {
-    // แบบใช้ฟังก์ชัน
-    // clearToken();
-
-    // หรือแบบลบ key ตรง ๆ
-    localStorage.removeItem("admin_token"); // ถ้าคุณใช้ localStorage
-    // sessionStorage.removeItem("admin_token"); // ถ้าคุณเปลี่ยนไปใช้ sessionStorage
-
-    navigate("/admin/login", { replace: true });
-  };
+    workType === "งานเอกสารธุรการ" ||
+    workType === "สมุดหนังสือที่มีการเข้าเล่ม" ||
+    workType === "อื่นๆ";
 
   return (
     <>
-      <header className="mx-auto max-w-3xl px-4 py-10  text-4xl">
-        <h2 className="text-center">ใบสั่งพิมพ์งาน</h2>
-      </header>
-
       <section>
         {/* {projectsState.status === "loading" && (
             <div>
@@ -832,6 +829,7 @@ function Form(): JSX.Element {
           )} */}
 
         {/* {projectsState.status === "success" && ( */}
+        <SearchBox />
         <form
           id="order-form"
           onSubmit={handleSubmit}
@@ -847,620 +845,198 @@ function Form(): JSX.Element {
 
           <div className="mx-4 mb-6 rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
             {/* HEADER */}
-            <div className="px-6 pt-6">
-              <h2 className="text-lg sm:text-xl font-semibold flex items-center gap-2 text-slate-800">
-                <User className="text-blue-600 w-5 h-5" />
-                ข้อมูลลูกค้า
+            <div className="px-6 pt-2">
+              <h2 className="pt-2 text-lg sm:text-xl font-semibold flex items-center gap-2 text-slate-800">
+                <ReceiptText className="text-blue-600 w-5 h-5" />
+                ใบสั่งพิมพ์งาน
               </h2>
-              <div className="mt-4 border-b border-slate-200" />
             </div>
 
             {/* FORM GRID */}
-            <div className="px-6 pb-2 pt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* tax */}
-              <div className="space-y-1">
-                <label className="text-sm  text-slate-700">TAX</label>
-                <input
-                  name="tax_id"
-                  value={formData.tax_id}
-                  onChange={handleChange}
-                  className="w-full rounded-xl px-3 py-2 text-sm outline-none transition border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-100"
-                />
-              </div>
-              {/* COMPANY */}
-              <div className="space-y-1">
-                <label className="text-sm  text-slate-700">
-                  ชื่อบริษัท/หน่วยงาน <span className="text-rose-600">*</span>
-                </label>
-                <input
-                  name="company"
-                  value={formData.company}
-                  onChange={handleChange}
-                  className={`w-full rounded-xl px-3 py-2 text-sm outline-none transition
-                ${
-                  errors.company
-                    ? "border border-rose-500 focus:ring-2 focus:ring-rose-200"
-                    : "border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-100"
-                }`}
-                />
-                {errors.company && (
-                  <p className="text-xs text-rose-600">{errors.company}</p>
-                )}
-              </div>
+            <div className="mt-4 border-b border-slate-200" />
 
-              {/* FULL NAME */}
-              <div className="space-y-1">
-                <label className="text-sm  text-slate-700">
-                  ลูกค้า <span className="text-rose-600">*</span>
-                </label>
-                <input
-                  name="fullName"
-                  value={formData.fullName}
-                  onChange={handleChange}
-                  className={`w-full rounded-xl px-3 py-2 text-sm outline-none transition
-                ${
-                  errors.fullName
-                    ? "border border-rose-500 focus:ring-2 focus:ring-rose-200"
-                    : "border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-100"
-                }`}
-                />
-                {errors.fullName && (
-                  <p className="text-xs text-rose-600">{errors.fullName}</p>
-                )}
-              </div>
-
-              {/* PHONE */}
-              <div className="space-y-1">
-                <label className="text-sm  text-slate-700">
-                  โทร <span className="text-rose-600">*</span>
-                </label>
-                <input
-                  name="phoneNumber"
-                  type="tel"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  value={formData.phoneNumber}
-                  onChange={handleChange}
-                  className={`w-full rounded-xl px-3 py-2 text-sm outline-none transition
-                  ${
-                    errors.phoneNumber
-                      ? "border border-rose-500 focus:ring-2 focus:ring-rose-200"
-                      : "border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-100"
-                  }`}
-                />
-                {errors.phoneNumber && (
-                  <p className="text-xs text-rose-600">{errors.phoneNumber}</p>
-                )}
-              </div>
-            </div>
-            {/* แถวที่ 2 */}
-            <div className="px-6 pb-4 pt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* 🔹 LEFT SIDE (2x2 GRID) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                {/* EMAIL */}
-                <div className="space-y-1">
-                  <label className="text-sm  text-slate-700">
-                    อีเมล <span className="text-rose-600">*</span>
-                  </label>
-                  <input
-                    name="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className={`w-full rounded-xl px-3 py-2 text-sm outline-none transition
-                    ${
-                      errors.email
-                        ? "border border-rose-500 focus:ring-2 focus:ring-rose-200"
-                        : "border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-100"
-                    }`}
-                  />
-                  {errors.email && (
-                    <p className="text-xs text-rose-600">{errors.email}</p>
-                  )}
-                </div>
-
-                {/* LINE */}
-                <div className="space-y-1">
-                  <label className="text-sm  text-slate-700">Line</label>
-                  <input
-                    name="lineId"
-                    value={formData.lineId}
-                    onChange={handleChange}
-                    className="w-full rounded-xl px-3 py-2 text-sm outline-none transition border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-100"
-                  />
-                </div>
-
-                {/* ประเภทงาน */}
-                <div className="space-y-1">
-                  <label className="text-sm  text-slate-800">ประเภทงาน</label>
-                  <select
-                    value={workType}
-                    onChange={(e) => setWorkType(e.target.value)}
-                    disabled={workTypesLoading || workTypes.length === 0}
-                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-100 disabled:opacity-60"
-                  >
-                    <option value="" disabled>
-                      {workTypesLoading ? "กำลังโหลด..." : "เลือกประเภทงาน"}
-                    </option>
-
-                    {workTypes.map((t) => (
-                      <option key={t._id} value={t.name_work}>
-                        {t.name_work}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* PROJECT */}
-                <div className="space-y-1">
-                  <label className="text-sm  text-slate-800">
-                    Project <span className="text-rose-600">*</span>
-                  </label>
-                  <select
-                    value={selectedProjectGid}
-                    onChange={(e) => setSelectedProjectGid(e.target.value)}
-                    className={[
-                      " w-full rounded-xl border bg-white px-3 py-2.5 text-base sm:text-sm outline-none",
-                      errors.project
-                        ? "border-rose-400 focus:border-rose-500"
-                        : "border-slate-300 focus:border-slate-900",
-                    ].join(" ")}
-                  >
-                    <option value="" disabled>
-                      เลือกโปรเจกต์
-                    </option>
-                    {projectsState.data?.map((p) => (
-                      <option key={p.gid} value={p.gid}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                  {errors.project && (
-                    <p className="text-xs text-rose-600">{errors.project}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* 🔹 RIGHT SIDE (ADDRESS) */}
-              <div className="space-y-1">
-                <label className="text-sm  text-slate-800">
-                  ที่อยู่ <span className="text-rose-600">*</span>
-                </label>
-                <textarea
-                  name="address"
-                  value={formData.address}
-                  onChange={handleChange}
-                  rows={6}
-                  className={`w-full rounded-2xl px-3 py-2 text-sm outline-none resize-none transition
-                  ${
-                    errors.address
-                      ? "border border-rose-500 focus:ring-2 focus:ring-rose-200"
-                      : "border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-100"
-                  }`}
-                />
-                {errors.address && (
-                  <p className="text-xs text-rose-600">{errors.address}</p>
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="mx-4 mb-6 rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-            {/* HEADER */}
-            <div className="px-6 pt-6">
-              <h2 className="text-lg sm:text-xl font-semibold flex items-center gap-2 text-slate-800">
-                <ReceiptText className="text-blue-600 w-5 h-5" />
-                รายละเอียดงาน
-              </h2>
-              <div className="mt-4 border-b border-slate-200" />
-
-              <div className="px-6 pb-2 pt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* วันที่สั่งงาน */}
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-700">
-                    วันที่สั่งงาน <span className="text-rose-600">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    name="startDate"
-                    value={formData.startDate}
-                    onChange={handleChange}
-                    className={[
-                      "w-full rounded-xl border bg-white px-3 py-2 text-sm outline-none transition",
-                      "focus:ring-2 focus:ring-indigo-100",
-                      errors.startDate
-                        ? "border-rose-400 focus:border-rose-500"
-                        : "border-slate-300 focus:border-indigo-600",
-                    ].join(" ")}
-                  />
-                  {errors.startDate && (
-                    <p className="text-xs text-rose-600">{errors.startDate}</p>
-                  )}
-                </div>
-
-                {/* วันที่รับงาน */}
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-700">
-                    วันที่รับงาน <span className="text-rose-600">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    name="endDate"
-                    value={formData.endDate}
-                    onChange={handleChange}
-                    min={formData.startDate || undefined}
-                    className={[
-                      "w-full rounded-xl border bg-white px-3 py-2.5 text-sm outline-none transition",
-                      "focus:ring-2 focus:ring-indigo-100",
-                      errors.endDate
-                        ? "border-rose-400 focus:border-rose-500"
-                        : "border-slate-300 focus:border-indigo-600",
-                    ].join(" ")}
-                  />
-                  {errors.endDate && (
-                    <p className="text-xs text-rose-600">{errors.endDate}</p>
-                  )}
-                </div>
-
-                {/* ชื่องาน */}
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-700">
-                    ชื่องาน <span className="text-rose-600">*</span>
-                  </label>
-                  <input
-                    name="jobName"
-                    value={formData.jobName}
-                    onChange={handleChange}
-                    className={[
-                      "w-full rounded-xl border bg-white px-3 py-2.5 text-sm outline-none transition",
-                      "focus:ring-2 focus:ring-indigo-100",
-                      errors.jobName
-                        ? "border-rose-400 focus:border-rose-500"
-                        : "border-slate-300 focus:border-indigo-600",
-                    ].join(" ")}
-                  />
-                  {errors.jobName && (
-                    <p className="text-xs text-rose-600">{errors.jobName}</p>
-                  )}
-                </div>
-
-                {/* จำนวนสั่ง */}
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-700">
-                    จำนวนสั่ง <span className="text-rose-600">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    name="quantity"
-                    value={formData.quantity}
-                    onChange={handleChange}
-                    min={1}
-                    className={`w-full rounded-xl border bg-white px-3 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-indigo-100 ${
-                      errors.quantity
-                        ? "border-rose-500"
-                        : "border-slate-300 focus:border-indigo-600"
-                    }`}
-                  />
-                  {errors.quantity && (
-                    <p className="text-xs text-rose-600">{errors.quantity}</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="px-6 pb-6 pt-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-200">
-                <div className="p-6">
-                  <Subtask
-                    projects={
-                      projectsState.status === "success"
-                        ? projectsState.data
-                        : []
-                    }
-                    value={subtasks}
-                    onChange={setSubtasks}
-                    disabled={creating || projectsState.status !== "success"}
-                  />
-                </div>
-                <div className="p-6">
-                  <Details key={detailsKey} files={files} setFiles={setFiles} />
-                </div>
-                <div className="p-6">
-                  <Detail_Type
-                    key={detailsKey}
-                    files={files}
-                    setFiles={setFiles}
-                  />
-                </div>
-              </div>
-            </div>
-            </div>
-          </div>
-           <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 pb-10 disabled:opacity-50 disabled:cursor-not-allowed">
-                <div className="flex justify-end">
-                  <button
-                    type="submit"
-                    disabled={creating}
-                    className="rounded-xl bg-slate-900 px-5 py-2.5 text-white text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    {creating ? "กำลังส่ง..." : "ส่งใบสั่งงาน"}
-                  </button>
-                </div>
-
-                {successOpen && (
-                  <div
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-                    onClick={() => setSuccessOpen(false)}
-                  >
-                    <div
-                      className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
-                      onClick={(ev) => ev.stopPropagation()}
-                    >
-                      <div className="text-lg font-semibold text-slate-900">
-                        สำเร็จ
-                      </div>
-                      <div className="mt-2 text-sm text-slate-700">
-                        {successMessage}
-                      </div>
-
-                      <div className="mt-6 flex justify-end gap-2">
-                        <button
-                          type="button"
-                          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-                          onClick={() => {
-                            setSuccessOpen(false);
-                            resetForm();
-                            window.scrollTo({ top: 0, behavior: "smooth" });
-                          }}
-                        >
-                          ตกลง
-                        </button>
-
-                        <PDFDownloadButton
-                          formId="order-form"
-                          formData={formData}
-                          notes={createdNotes}
-                          fileName="order.pdf"
-                        />
-                      </div>
-                    </div>
+            <div className="px-4 sm:px-6 py-8">
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                {/* LEFT SIDEBAR */}
+                <div className="lg:col-span-1">
+                  <div className="lg:sticky lg:top-24">
+                    <h2 className="text-2xl font-semibold text-slate-800">
+                      ข้อมูลลูกค้า
+                    </h2>
+                    <p className="text-sm text-slate-500 mt-2">ภาษาพม่า</p>
                   </div>
-                )}
-              </div>
-        </form>
-        
-      </section>
-
-      <div className="min-h-screen text-slate-900">
-        <header className="mx-auto max-w-3xl px-4 py-10">
-          <div className="flex items-center justify-between">
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="ml-4 shrink-0 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50"
-            >
-              ออกจากระบบ
-            </button>
-          </div>
-        </header>
-
-        {/* <header className="mx-auto max-w-3xl px-4 py-10 text-center text-4xl">
-          <h2>ใบสั่งพิมพ์งาน</h2>
-        </header>
-
-        <div className="mx-auto max-w-2xl px-4 pb-6">
-          <SearchBox />
-        </div>
-
-        <section className="min-h-[60vh] flex items-center justify-center pb-16">
-          {projectsState.status === "loading" && (
-            <div>
-              <span className="loading loading-spinner loading-xl"></span>
-            </div>
-          )}
-
-          {projectsState.status === "error" && (
-            <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 whitespace-pre-wrap">
-              {projectsState.error}
-            </div>
-          )}
-
-          {projectsState.status === "success" && (
-            <form
-              id="order-form"
-              onSubmit={handleSubmit}
-              encType="multipart/form-data"
-              noValidate
-              className="mx-auto w-full max-w-3xl space-y-6 px-4 sm:px-6"
-            >
-              {formError && (
-                <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
-                  {formError}
                 </div>
-              )}
 
-              <div className="w-full bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                <div className="border border-slate-200 rounded-2xl ">
-                  <div className="grid grid-cols-1 md:grid-cols-2 justify-between px-6 py-5">
-                    <div>
-                      <h2 className="px-6 pt-6 text-lg sm:text-xl font-semibold flex items-center">
-                        ข้อมูลลูกค้า
-                      </h2>
-                    </div>
-                    <div className="flex items-center">
-                      <label>tax</label>
+                {/* RIGHT FORM */}
+                <div className="lg:col-span-3 space-y-6">
+                  {/* GRID FORM */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* TAX */}
+                    <div className="space-y-2">
+                      <label className="text-sm text-slate-700">TAX</label>
                       <input
                         name="tax_id"
                         value={formData.tax_id}
                         onChange={handleChange}
-                        className="mt-2 ml-1 w-full rounded-lg border border-slate-300 px-2 py-1 text-base sm:text-sm outline-none focus:border-slate-900"
+                        className="w-full rounded-xl px-4 py-2.5 text-sm border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-100"
                       />
                     </div>
-                  </div>
 
-                  <div className="grid px-6 py-5">
-                    <label>
-                      ชื่อบริษัท/หน่วยงาน{" "}
-                      <span className="text-red-600">*</span>
-                    </label>
-                    <input
-                      name="company"
-                      value={formData.company}
-                      onChange={handleChange}
-                      className={`mt-2 w-full rounded-xl px-3 py-2.5 text-base sm:text-sm outline-none
-                        ${
-                          errors.fullName
-                            ? "border border-rose-500 focus:border-rose-600"
-                            : "border border-slate-300 focus:border-slate-900"
-                        }`}
-                    />
-                    {errors.company && (
-                      <p className="mt-1 text-xs text-rose-600">
-                        {errors.company}
-                      </p>
-                    )}
-                  </div>
+                    {/* COMPANY */}
+                    <div className="space-y-2">
+                      <label className="text-sm text-slate-700">
+                        ชื่อบริษัท/หน่วยงาน{" "}
+                        <span className="text-rose-600">*</span>
+                      </label>
+                      <input
+                        name="company"
+                        value={formData.company}
+                        onChange={handleChange}
+                        className="w-full rounded-xl px-4 py-2.5 text-sm border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-100"
+                      />
+                    </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 px-6 py-5">
-                    <div>
-                      <label className="text-base sm:text-sm font-medium text-slate-800">
-                        ลูกค้า <span className="text-red-600">*</span>
+                    {/* FULL NAME (เต็มแถว) */}
+                    <div className="space-y-2 md:col-span-2">
+                      <label className="text-sm text-slate-700">
+                        ลูกค้า <span className="text-rose-600">*</span>
                       </label>
                       <input
                         name="fullName"
                         value={formData.fullName}
                         onChange={handleChange}
-                        className={`mt-2 w-full rounded-xl px-3 py-2.5 text-base sm:text-sm outline-none
-                          ${
-                            errors.fullName
-                              ? "border border-rose-500 focus:border-rose-600"
-                              : "border border-slate-300 focus:border-slate-900"
-                          }`}
+                        className="w-full rounded-xl px-4 py-2.5 text-sm border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-100"
                       />
-                      {errors.fullName && (
-                        <p className="mt-1 text-xs text-rose-600">
-                          {errors.fullName}
-                        </p>
-                      )}
                     </div>
 
-                    <div>
-                      <label className="text-base sm:text-sm font-medium text-slate-800">
-                        โทร <span className="text-red-600">*</span>
+                    {/* PHONE */}
+                    <div className="space-y-2">
+                      <label className="text-sm text-slate-700">
+                        โทร <span className="text-rose-600">*</span>
                       </label>
                       <input
                         name="phoneNumber"
                         value={formData.phoneNumber}
-                        type="tel"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
                         onChange={handleChange}
-                        className={`mt-2 w-full rounded-xl px-3 py-2.5 text-base sm:text-sm outline-none
-                          ${
-                            errors.fullName
-                              ? "border border-rose-500 focus:border-rose-600"
-                              : "border border-slate-300 focus:border-slate-900"
-                          }`}
+                        className="w-full rounded-xl px-4 py-2.5 text-sm border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-100"
                       />
-                      {errors.phoneNumber && (
-                        <p className="mt-1 text-xs text-rose-600">
-                          {errors.phoneNumber}
-                        </p>
-                      )}
                     </div>
 
-                    <div>
-                      <label className="text-base sm:text-sm font-medium text-slate-800">
-                        อีเมล <span className="text-red-600">*</span>
+                    {/* EMAIL */}
+                    <div className="space-y-2">
+                      <label className="text-sm text-slate-700">
+                        อีเมล <span className="text-rose-600">*</span>
                       </label>
                       <input
                         name="email"
-                        type="email"
                         value={formData.email}
                         onChange={handleChange}
-                        className={`mt-2 w-full rounded-xl px-3 py-2.5 text-base sm:text-sm outline-none
-                          ${
-                            errors.fullName
-                              ? "border border-rose-500 focus:border-rose-600"
-                              : "border border-slate-300 focus:border-slate-900"
-                          }`}
-                      />
-                      {errors.email && (
-                        <p className="mt-1 text-xs text-rose-600">
-                          {errors.email}
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="text-base sm:text-sm font-medium text-slate-800">
-                        Line
-                      </label>
-                      <input
-                        name="lineId"
-                        value={formData.lineId}
-                        onChange={handleChange}
-                        className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm outline-none focus:border-slate-900"
+                        className="w-full rounded-xl px-4 py-2.5 text-sm border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-100"
                       />
                     </div>
+                  </div>
 
-                    <div className="md:col-span-2">
-                      <label className="text-base sm:text-sm font-medium text-slate-800">
-                        ที่อยู่ <span className="text-red-600">*</span>
+                  {/* LINE + PROJECT + ADDRESS SECTION */}
+                  <div className="grid grid-cols-1 md:grid-cols-1 gap-6 lg:grid-cols-2">
+                    {/* LEFT COLUMN (Line + Project) */}
+                    <div className="grid grid-rows-2 gap-6">
+                      {/* LINE */}
+                      <div className="space-y-2">
+                        <label className="text-sm text-slate-700">Line</label>
+                        <input
+                          name="lineId"
+                          value={formData.lineId}
+                          onChange={handleChange}
+                          className="w-full rounded-xl px-4 py-2.5 text-sm border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-100"
+                        />
+                      </div>
+
+                      {/* PROJECT */}
+                      <div className="space-y-2">
+                        <label className="text-sm text-slate-700">
+                          Project <span className="text-rose-600">*</span>
+                        </label>
+                        <select
+                          value={selectedProjectGid}
+                          onChange={(e) =>
+                            setSelectedProjectGid(e.target.value)
+                          }
+                          className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:border-slate-900"
+                        >
+                          <option value="">เลือกโปรเจกต์</option>
+                          {projectsState.data?.map((p) => (
+                            <option key={p.gid} value={p.gid}>
+                              {p.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* RIGHT COLUMN (ADDRESS สูงเท่ากัน) */}
+                    <div className="space-y-2">
+                      <label className="text-sm text-slate-700">
+                        ที่อยู่ <span className="text-rose-600">*</span>
                       </label>
                       <textarea
                         name="address"
                         value={formData.address}
                         onChange={handleChange}
-                        rows={3}
-                        className={`mt-2 w-full rounded-xl px-3 py-2.5 text-base sm:text-sm outline-none resize-none
-                          ${
-                            errors.fullName
-                              ? "border border-rose-500 focus:border-rose-600"
-                              : "border border-slate-300 focus:border-slate-900"
-                          }`}
+                        className="w-full min-h-[132px] rounded-xl px-4 py-2.5 text-sm border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-100 resize-none"
                       />
-                      {errors.address && (
-                        <p className="mt-1 text-xs text-rose-600">
-                          {errors.address}
-                        </p>
-                      )}
                     </div>
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
 
-              <div className="w-full bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden ">
-                <div className="border border-slate-200 rounded-2xl px-6 py-5">
-                  <h2 className=" pt-6 text-lg sm:text-xl font-semibold">
-                    รายละเอียดงาน
-                  </h2>
+          <div className="mx-4 mb-6 rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            {/* HEADER */}
+            <div className="px-4 sm:px-6 py-8">
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
+                {/* LEFT SIDEBAR */}
+                <div className="lg:col-span-1">
+                  <div className="lg:sticky lg:top-24 pt-1 md:pt-2">
+                    <h2 className="text-2xl font-semibold text-slate-800 leading-tight">
+                      รายละเอียดงาน
+                    </h2>
+                    <p className="text-sm text-slate-500 mt-2">ภาษาพม่า</p>
+                  </div>
+                </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-2 gap-6 px-6 py-5">
-                    <div>
-                      <label>
-                        วันที่สั่งงาน <span className="text-red-600">*</span>
+                {/* RIGHT FORM */}
+                <div className="lg:col-span-3 space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* วันที่สั่งงาน */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-slate-700">
+                        วันที่สั่งงาน <span className="text-rose-600">*</span>
                       </label>
                       <input
                         type="date"
                         name="startDate"
                         value={formData.startDate}
                         onChange={handleChange}
-                        className={[
-                          "mt-2 w-full rounded-xl border bg-white px-3 py-2.5 text-base sm:text-sm outline-none",
-                          errors.startDate
-                            ? "border-rose-400 focus:border-rose-500"
-                            : "border-slate-300 focus:border-slate-900",
-                        ].join(" ")}
+                        className={`w-full rounded-xl border bg-white px-4 py-2.5 text-sm outline-none transition
+              focus:ring-2 focus:ring-indigo-100
+              ${
+                errors.startDate
+                  ? "border-rose-400 focus:border-rose-500"
+                  : "border-slate-300 focus:border-indigo-600"
+              }`}
                       />
                       {errors.startDate && (
-                        <p className="mt-1 text-xs text-rose-600">
+                        <p className="text-xs text-rose-600">
                           {errors.startDate}
                         </p>
                       )}
                     </div>
 
-                    <div>
-                      <label>
-                        วันที่รับงาน <span className="text-red-600">*</span>
+                    {/* วันที่รับงาน */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-slate-700">
+                        วันที่รับงาน <span className="text-rose-600">*</span>
                       </label>
                       <input
                         type="date"
@@ -1468,184 +1044,265 @@ function Form(): JSX.Element {
                         value={formData.endDate}
                         onChange={handleChange}
                         min={formData.startDate || undefined}
-                        className={[
-                          "mt-2 w-full rounded-xl border bg-white px-3 py-2.5 text-base sm:text-sm outline-none",
-                          errors.endDate
-                            ? "border-rose-400 focus:border-rose-500"
-                            : "border-slate-300 focus:border-slate-900",
-                        ].join(" ")}
+                        className={`w-full rounded-xl border bg-white px-4 py-2.5 text-sm outline-none transition
+              focus:ring-2 focus:ring-indigo-100
+              ${
+                errors.endDate
+                  ? "border-rose-400 focus:border-rose-500"
+                  : "border-slate-300 focus:border-indigo-600"
+              }`}
                       />
                       {errors.endDate && (
-                        <p className="mt-1 text-xs text-rose-600">
+                        <p className="text-xs text-rose-600">
                           {errors.endDate}
                         </p>
                       )}
                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 px-6 py-5">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-                       
-
-                      <div>
-                        <label>
-                          จำนวนสั่ง <span className="text-red-600">*</span>
-                        </label>
-                        <input
-                          type="number"
-                          name="quantity"
-                          value={formData.quantity}
-                          onChange={handleChange}
-                          min={1}
-                          required
-                          className={`mt-2 w-full rounded-xl border bg-white px-3 py-2.5 text-base sm:text-sm outline-none focus:border-slate-900 ${
-                            errors.quantity
-                              ? "border-rose-500"
-                              : "border-slate-300"
-                          }`}
-                        />
-                        {errors.quantity && (
-                          <p className="mt-1 text-xs text-rose-600">
-                            {errors.quantity}
-                          </p>
-                        )}
-                      </div>
+                    {/* จำนวนสั่ง */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-slate-700">
+                        จำนวนสั่ง <span className="text-rose-600">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        name="quantity"
+                        value={formData.quantity}
+                        onChange={handleChange}
+                        min={1}
+                        className={`w-full rounded-xl border bg-white px-4 py-2.5 text-sm outline-none transition
+              focus:ring-2 focus:ring-indigo-100
+              ${
+                errors.quantity
+                  ? "border-rose-500"
+                  : "border-slate-300 focus:border-indigo-600"
+              }`}
+                      />
+                      {errors.quantity && (
+                        <p className="text-xs text-rose-600">
+                          {errors.quantity}
+                        </p>
+                      )}
                     </div>
 
-                    <div>
-                      <label>
-                        ชื่องาน <span className="text-red-600">*</span>
+                    {/* ชื่องาน (เต็มแถว) */}
+                    <div className="space-y-2 md:col-span-3 lg:col-span-3">
+                      <label className="text-sm font-medium text-slate-700">
+                        ชื่องาน <span className="text-rose-600">*</span>
                       </label>
                       <input
                         name="jobName"
                         value={formData.jobName}
                         onChange={handleChange}
-                        className={[
-                          "mt-2 w-full rounded-xl border bg-white px-3 py-2.5 text-base sm:text-sm outline-none",
-                          errors.jobName
-                            ? "border-rose-400 focus:border-rose-500"
-                            : "border-slate-300 focus:border-slate-900",
-                        ].join(" ")}
+                        className={`w-full rounded-xl border bg-white px-4 py-2.5 text-sm outline-none transition
+              focus:ring-2 focus:ring-indigo-100
+              ${
+                errors.jobName
+                  ? "border-rose-400 focus:border-rose-500"
+                  : "border-slate-300 focus:border-indigo-600"
+              }`}
                       />
                       {errors.jobName && (
-                        <p className="mt-1 text-xs text-rose-600">
+                        <p className="text-xs text-rose-600">
                           {errors.jobName}
                         </p>
                       )}
                     </div>
 
-                    <div className="text-sm font-medium text-slate-800">
-                      <label>ประเภทงาน</label>
-
-                      {!workTypesLoading && workTypes.length === 0 && (
-                        <option value="" disabled>
-                          ไม่มีประเภทงานในระบบ
-                        </option>
-                      )}
-
-                      <select
-                        value={workType}
-                        onChange={(e) => setWorkType(e.target.value)}
-                        disabled={workTypesLoading || workTypes.length === 0}
-                        className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900 disabled:opacity-60"
+                    <div className="space-y-2 md:col-span-3 lg:col-span-3">
+                      <Subtask
+                        projects={
+                          projectsState.status === "success"
+                            ? projectsState.data
+                            : []
+                        }
+                        value={subtasks}
+                        onChange={setSubtasks}
+                        disabled={
+                          creating || projectsState.status !== "success"
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2 md:col-span-3 lg:col-span-3">
+                      <Details
+                        key={detailsKey}
+                        files={files}
+                        setFiles={setFiles}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 border-b border-slate-200" />
+            <div className="px-4 sm:px-6 py-8">
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
+                {/* LEFT SIDEBAR */}
+                <div className="lg:col-span-1">
+                  <div className="lg:sticky lg:top-24 pt-1 md:pt-2">
+                    <h2 className="text-2xl font-semibold text-slate-800 leading-tight">
+                      รายละเอียดงานเพิ่มเติม
+                    </h2>
+                    <p className="text-sm text-slate-500 mt-2">ภาษาพม่า</p>
+                  </div>
+                </div>
+                <div className="lg:col-span-3 space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="dropdown w-full max-w-xs">
+                      {/* ปุ่มแสดงค่าปัจจุบัน */}
+                      <div
+                        tabIndex={0}
+                        role="button"
+                        className="btn btn-outline w-full justify-between"
                       >
-                        <option value="" disabled>
-                          {workTypesLoading ? "กำลังโหลด..." : "เลือกประเภทงาน"}
-                        </option>
+                        {workType || "เลือกประเภทงาน"}
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="w-4 h-4 opacity-70"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </div>
 
+                      {/* เมนู dropdown */}
+                      <ul
+                        tabIndex={0}
+                        className="menu menu-sm dropdown-content bg-base-100 rounded-box z-[1] mt-2 w-60 p-2 shadow"
+                      >
                         {workTypes.map((t) => (
-                          <option key={t._id} value={t.name_work}>
-                            {t.name_work}
-                          </option>
+                          <li key={t._id}>
+                            <a
+                              onClick={() => setWorkType(t.name_work)}
+                              className={`flex justify-between ${
+                                workType === t.name_work ? "active" : ""
+                              }`}
+                            >
+                              {t.name_work}
+                              {workType === t.name_work && "✓"}
+                            </a>
+                          </li>
                         ))}
-                      </select>
+                      </ul>
                     </div>
                   </div>
 
-                  <Subtask
-                    projects={
-                      projectsState.status === "success"
-                        ? projectsState.data
-                        : []
-                    }
-                    value={subtasks}
-                    onChange={setSubtasks}
-                    disabled={creating || projectsState.status !== "success"}
-                  />
+                  <div className="space-y-2 md:col-span-3 lg:col-span-3">
+                    {showPaperUsed && <Paper_used />}
+                  </div>
+                  <div className="space-y-2 md:col-span-3 lg:col-span-3">
+                    <div className="space-y-2">
+                      {showPasansee && <Pasansee />}
+                    </div>
+                  </div>
 
-                  <hr className="my-6 border-slate-200" />
-
-                  {showPaperUsed && <Paper_used />}
-                  {showPasansee && <Pasansee />}
-                  {showBinding && <Binding />}
-
-                  <Details key={detailsKey} files={files} setFiles={setFiles} />
-
-                  <div key={`work-${resetKey}`}>
+                  <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
+                    {showBinding && <Binding />}
+                  </div>
+                  <div
+                    key={`work-${resetKey}`}
+                    className="grid grid-cols-1 md:grid-cols-1 gap-6"
+                  >
                     <TypeOfWork />
                   </div>
-
-                  <div key={`printer-${resetKey}`}>
-                    <Printer />
-                  </div>
-                </div>
-              </div>
-
-              <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 pb-10 disabled:opacity-50 disabled:cursor-not-allowed">
-                <div className="flex justify-end">
-                  <button
-                    type="submit"
-                    disabled={creating}
-                    className="rounded-xl bg-slate-900 px-5 py-2.5 text-white text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    {creating ? "กำลังส่ง..." : "ส่งใบสั่งงาน"}
-                  </button>
-                </div>
-
-                {successOpen && (
-                  <div
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-                    onClick={() => setSuccessOpen(false)}
-                  >
-                    <div
-                      className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
-                      onClick={(ev) => ev.stopPropagation()}
-                    >
-                      <div className="text-lg font-semibold text-slate-900">
-                        สำเร็จ
-                      </div>
-                      <div className="mt-2 text-sm text-slate-700">
-                        {successMessage}
-                      </div>
-
-                      <div className="mt-6 flex justify-end gap-2">
-                        <button
-                          type="button"
-                          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-                          onClick={() => {
-                            setSuccessOpen(false);
-                            resetForm();
-                            window.scrollTo({ top: 0, behavior: "smooth" });
-                          }}
-                        >
-                          ตกลง
-                        </button>
-
-                        <PDFDownloadButton
-                          formId="order-form"
-                          formData={formData}
-                          notes={createdNotes}
-                          fileName="order.pdf"
-                        />
-                      </div>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    {/* RIGHT ใหญ่ */}
+                    <div className="md:col-span-2 space-y-2">
+                      <Detail_Type
+                        value={detailType}
+                        onChange={setDetailType}
+                      />
+                    </div>
+                    <div className="md:col-span-2 space-y-2 ">
+                      <Color
+                        selected={selectedColors}
+                        onChange={setSelectedColors}
+                      />
                     </div>
                   </div>
-                )}
+                  <div
+                    key={`printer-${resetKey}`}
+                    className="grid grid-cols-1 md:grid-cols-1 gap-6"
+                  >
+                    <Printer />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
+                    <FileUpload files={files} setFiles={setFiles} />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
+                    <AdditionalDetails
+                      value={formData.extra}
+                      onChange={(val) =>
+                        setFormData((prev) => ({ ...prev, extra: val }))
+                      }
+                    />
+                  </div>
+                </div>
               </div>
-            </form>
-          )}
-        </section> */}
-      </div>
+            </div>
+          </div>
+
+          <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 pb-10 disabled:opacity-50 disabled:cursor-not-allowed">
+            <div className="flex justify-end ">
+              <button
+                type="submit"
+                disabled={creating}
+                className="rounded-xl bg-slate-900 px-5 py-2.5 text-white text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {creating ? "กำลังส่ง..." : "ส่งใบสั่งงาน"}
+              </button>
+            </div>
+
+            {successOpen && (
+              <div
+                className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+                onClick={() => setSuccessOpen(false)}
+              >
+                <div
+                  className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+                  onClick={(ev) => ev.stopPropagation()}
+                >
+                  <div className="text-lg font-semibold text-slate-900">
+                    สำเร็จ
+                  </div>
+                  <div className="mt-2 text-sm text-slate-700">
+                    {successMessage}
+                  </div>
+
+                  <div className="mt-6 flex justify-end gap-2">
+                    <button
+                      type="button"
+                      className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                      onClick={() => {
+                        setSuccessOpen(false);
+                        resetForm();
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }}
+                    >
+                      ตกลง
+                    </button>
+
+                    <PDFDownloadButton
+                      formId="order-form"
+                      formData={formData}
+                      notes={createdNotes}
+                      fileName="order.pdf"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </form>
+        {/* )} */}
+      </section>
     </>
   );
 }

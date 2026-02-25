@@ -23,7 +23,7 @@ Font.register({
 const styles = StyleSheet.create({
   page: {
     fontFamily: "Sarabun",
-    fontSize: 12,
+    fontSize: 10,
     padding: 30,
   },
   title: {
@@ -67,7 +67,7 @@ const styles = StyleSheet.create({
     borderColor: "#000",
   },
   detailsTitle: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: "bold",
     paddingLeft: 10,
     paddingTop: 2, // ปรับค่าน้อยๆ เพื่อให้ชิดเส้นด้านบน
@@ -107,6 +107,7 @@ type Props = {
   detail_Type?: string;
   typeOfWorkText?: string;
   printer?: string;
+  colors?: string;
 };
 
 const MyPdfDocument = ({
@@ -141,6 +142,7 @@ const MyPdfDocument = ({
   detail_Type,
   typeOfWorkText,
   printer,
+  colors,
 
 
 
@@ -199,14 +201,28 @@ const MyPdfDocument = ({
           <Text style={styles.detailsTitle}>ปะสันสี</Text>
           <Text style={styles.text}>กระดาษ : {paperColor || "-"}</Text>
           <Text style={styles.text}>แล็กซีน : {laxineColor || "-"}</Text>
-          
-            <View
+
+          <View
             style={{
               borderBottom: "1px solid #000",
               width: "100%",
               marginVertical: 6,
             }}
           />
+
+
+          <Text style={styles.detailsTitle}>สีที่ใช้</Text>
+           <Text style={styles.text}>{colors || "-"}</Text>
+
+           <View
+            style={{
+              borderBottom: "1px solid #000",
+              width: "100%",
+              marginVertical: 6,
+            }}
+          />
+          
+            
            <Text style={styles.detailsTitle}>การเข้าเล่ม, ตีปรุและรันนัมเบอร์</Text>
            <Text style={styles.text}>เย็บลวด : {wire || "-"}</Text>
            <Text style={styles.text}>อัดสัน : {Adsan || "-"}</Text>
@@ -267,6 +283,8 @@ const MyPdfDocument = ({
 
           <Text style={styles.detailsTitle}>เครื่องพิมพ์พิมพ์</Text>
           <Text style={styles.text}>{printer || "-"}</Text>
+
+          
             
           </View>
         </View>

@@ -12,7 +12,7 @@ function Binding() {
   return (
     <>
       <div className="space-y-3">
-        <label className="block  ">การเข้าเล่ม,ตีปรุและรันนัมเบอร์</label>
+        <label className="block font-bold ">การเข้าเล่ม,ตีปรุและรันนัมเบอร์</label>
 
         <div className="flex items-center  gap-4 rounded-xl px-4 py-1">
           <input
@@ -259,7 +259,7 @@ function Binding() {
           </div>
         </div>
       </div>
-       <hr className="my-6 border-slate-200" />
+      
     </>
   );
 }

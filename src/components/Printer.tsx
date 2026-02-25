@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import axios from "../lib/axios";
-const DB_API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
+
 
 type PrinterDoc = {
   _id: string;
@@ -9,25 +9,9 @@ type PrinterDoc = {
   updatedAt?: string;
 };
 
-async function safeReadJson(res: Response) {
-  const text = await res.text();
-  if (!text) return null;
-  try {
-    return JSON.parse(text);
-  } catch {
-    return { raw: text };
-  }
-}
 
-async function fetchJsonOrThrow<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, init);
-  const json = await safeReadJson(res);
 
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status}\n${JSON.stringify(json, null, 2)}`);
-  }
-  return json as T;
-}
+
 
 export default function Printer() {
   const [items, setItems] = useState<PrinterDoc[]>([]);
@@ -63,7 +47,7 @@ export default function Printer() {
 
   return (
     <>
-      <label>เครื่องพิมพ์</label>
+      <label className="font-bold">เครื่องพิมพ์</label>
 
       {loading && (
         <div className="mt-2 text-sm text-slate-500">กำลังโหลดรายการเครื่องพิมพ์...</div>
@@ -79,7 +63,7 @@ export default function Printer() {
         <div className="mt-2 text-sm text-slate-500">ไม่มีรายการเครื่องพิมพ์ในระบบ</div>
       )}
 
-      <div className="p-2 grid grid-cols-2 md:grid-cols-3 gap-4 items-center text-base sm:text-sm text-slate-800">
+      <div className="p-2 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 items-center text-base sm:text-sm text-slate-800">
         {items.map((p) => (
           <label key={p._id} className="flex items-center gap-2 cursor-pointer">
             <input

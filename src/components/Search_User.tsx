@@ -1,10 +1,10 @@
 import { useEffect, useState, type JSX } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { dbFetchJson } from "../lib/dbClient"; //
+import { dbFetchJson } from "../lib/dbClient";
 
 type FileLink = { name: string; url: string };
 
-// ---------- helpers ----------
+// --- Helpers ---
 function pickJobName(notes: string): string {
   const re = /^ชื่องาน\s*:\s*(.*)$/m;
   const m = notes.match(re);
@@ -14,46 +14,20 @@ function pickJobName(notes: string): string {
 function parseFileLinks(raw: string): FileLink[] {
   const s = (raw || "").trim();
   if (!s) return [];
-
-  // 1) JSON string: [{"name":"..","url":".."}]
   try {
-    const j = JSON.parse(s) as unknown;
+    const j = JSON.parse(s);
     if (Array.isArray(j)) {
-      return j
-        .map((x) => {
-          if (!x || typeof x !== "object") return null;
-          const name = (x as any).name;
-          const url = (x as any).url;
-          if (typeof name !== "string") return null;
-          return { name, url: typeof url === "string" ? url : "" };
-        })
-        .filter(Boolean) as FileLink[];
+      return j.map((x: any) => ({
+        name: String(x.name || "ไฟล์แนบ"),
+        url: typeof x.url === "string" ? x.url : ""
+      })).filter(Boolean);
     }
-  } catch {
-    // ignore
-  }
+  } catch { /* ignore */ }
 
-  // 2) "name: url" ต่อบรรทัด
-  if (s.includes("\n") && s.includes(":")) {
-    return s
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .map((line) => {
-        const idx = line.indexOf(":");
-        if (idx < 0) return { name: line, url: "" };
-        const name = line.slice(0, idx).trim();
-        const url = line.slice(idx + 1).trim();
-        return { name, url };
-      });
-  }
-
-  // 3) fallback "a.pdf, b.ai"
-  return s
-    .split(",")
-    .map((x) => x.trim())
-    .filter(Boolean)
-    .map((name) => ({ name, url: "" }));
+  return s.split(",").map(x => x.trim()).filter(Boolean).map(name => ({
+    name,
+    url: name.startsWith("http") ? name : `/uploads/${name}` // เติม Path อัตโนมัติถ้าไม่มี URL
+  }));
 }
 
 const dateOnly = (v: any) => {
@@ -62,15 +36,12 @@ const dateOnly = (v: any) => {
   return m ? m[1] : (s || "-");
 };
 
-// ---------- Mongo types (ยืดหยุ่น) ----------
+// --- Types ---
 type CompanyDoc = {
   _id: string;
-  company?: string;        // ชื่อบริษัท
-  companyName?: string;    // บาง backend ใช้ชื่อ field นี้
+  company?: string;
   tax?: string;
-  count?: number;          // จำนวนครั้งที่เคยใช้บริการ (อาจชื่ออื่น)
-  count_use?: number;
-  count_service?: number;
+  count?: number;
 };
 
 type OrderDoc = {
@@ -79,133 +50,17 @@ type OrderDoc = {
   type_work?: string;
   start_date?: string;
   end_date?: string;
-  count_work?: number;
   detail_work?: string;
   file?: string;
 };
 
-// ---------- API helpers ----------
-async function fetchCompanies(): Promise<CompanyDoc[]> {
-  // พยายามเรียกแบบ "ได้ list"
-  const json = await dbFetchJson<any>("/companies", { method: "GET" });
-  const list = Array.isArray(json) ? json : (json?.data ?? []);
-  return (Array.isArray(list) ? list : [])
-    .map((x: any) => ({
-      _id: String(x?._id ?? x?.id ?? ""),
-      company: String(x?.company ?? "").trim(),
-      companyName: String(x?.companyName ?? "").trim(),
-      tax: String(x?.tax ?? "").trim(),
-      count: typeof x?.count === "number" ? x.count : undefined,
-      count_use: typeof x?.count_use === "number" ? x.count_use : undefined,
-      count_service: typeof x?.count_service === "number" ? x.count_service : undefined,
-    }))
-    .filter((x) => x._id);
-}
-
-async function searchCompaniesByCompanyName(q: string): Promise<CompanyDoc[]> {
-  const s = q.trim().toLowerCase();
-  if (!s) return [];
-
-  // ✅ ถ้า backend รองรับ query search ให้ลองก่อน
-  const candidates = [
-    `/companies/search?q=${encodeURIComponent(q)}`,
-    `/companies?q=${encodeURIComponent(q)}`,
-    `/companies?search=${encodeURIComponent(q)}`,
-    `/companies?company=${encodeURIComponent(q)}`,
-  ];
-
-  for (const path of candidates) {
-    try {
-      const json = await dbFetchJson<any>(path, { method: "GET" });
-      const list = Array.isArray(json) ? json : (json?.data ?? []);
-      const normalized = (Array.isArray(list) ? list : [])
-        .map((x: any) => ({
-          _id: String(x?._id ?? x?.id ?? ""),
-          company: String(x?.company ?? "").trim(),
-          companyName: String(x?.companyName ?? "").trim(),
-          tax: String(x?.tax ?? "").trim(),
-          count: typeof x?.count === "number" ? x.count : undefined,
-          count_use: typeof x?.count_use === "number" ? x.count_use : undefined,
-          count_service: typeof x?.count_service === "number" ? x.count_service : undefined,
-        }))
-        .filter((x) => x._id);
-
-      // ถ้าได้ผลลัพธ์จริง ให้ใช้เลย
-      if (normalized.length > 0) return normalized;
-    } catch {
-      // ignore แล้วไป fallback
-    }
-  }
-
-  // ✅ fallback: ดึงทั้งหมดแล้ว filter เอง
-  const all = await fetchCompanies();
-  return all.filter((c) => {
-    const name = (c.companyName || c.company || "").toLowerCase();
-    return name.includes(s);
-  });
-}
-
-async function fetchOrdersByCompanyId(companyId: string): Promise<OrderDoc[]> {
-  if (!companyId) return [];
-
-  // ✅ ลอง endpoint ที่น่ามี
-  const candidates = [
-    `/orders?company=${encodeURIComponent(companyId)}`,
-    `/orders?id_company=${encodeURIComponent(companyId)}`,
-    `/orders/company/${encodeURIComponent(companyId)}`,
-  ];
-
-  for (const path of candidates) {
-    try {
-      const json = await dbFetchJson<any>(path, { method: "GET" });
-      const list = Array.isArray(json) ? json : (json?.data ?? []);
-      const normalized = (Array.isArray(list) ? list : [])
-        .map((x: any) => ({
-          _id: String(x?._id ?? x?.id ?? ""),
-          id_company: String(x?.id_company ?? x?.company ?? x?.idCompany ?? ""),
-          type_work: String(x?.type_work ?? x?.typeWork ?? ""),
-          start_date: String(x?.start_date ?? x?.startDate ?? ""),
-          end_date: String(x?.end_date ?? x?.endDate ?? ""),
-          count_work: typeof x?.count_work === "number" ? x.count_work : Number(x?.count_work ?? 0),
-          detail_work: String(x?.detail_work ?? x?.notes ?? ""),
-          file: String(x?.file ?? x?.files ?? ""),
-        }))
-        .filter((x) => x._id);
-
-      // ถ้าได้ผลลัพธ์จริง ให้ใช้เลย
-      if (normalized.length >= 0) return normalized;
-    } catch {
-      // ignore แล้วไป fallback
-    }
-  }
-
-  // ✅ fallback: ดึง orders ทั้งหมดแล้ว filter เอง
-  const allJson = await dbFetchJson<any>("/orders", { method: "GET" });
-  const allList = Array.isArray(allJson) ? allJson : (allJson?.data ?? []);
-  const all = (Array.isArray(allList) ? allList : [])
-    .map((x: any) => ({
-      _id: String(x?._id ?? x?.id ?? ""),
-      id_company: String(x?.id_company ?? x?.company ?? x?.idCompany ?? ""),
-      type_work: String(x?.type_work ?? x?.typeWork ?? ""),
-      start_date: String(x?.start_date ?? x?.startDate ?? ""),
-      end_date: String(x?.end_date ?? x?.endDate ?? ""),
-      count_work: typeof x?.count_work === "number" ? x.count_work : Number(x?.count_work ?? 0),
-      detail_work: String(x?.detail_work ?? x?.notes ?? ""),
-      file: String(x?.file ?? x?.files ?? ""),
-    }))
-    .filter((x) => x._id);
-
-  return all.filter((o) => o.id_company === companyId);
-}
-
-// ---------- Component ----------
 export default function Search_User(): JSX.Element {
   const [params] = useSearchParams();
   const nav = useNavigate();
   const q = (params.get("q") || "").trim();
 
   const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState<string>("");
+  const [, setErr] = useState<string>("");
   const [companies, setCompanies] = useState<CompanyDoc[]>([]);
   const [ordersByCompany, setOrdersByCompany] = useState<Record<string, OrderDoc[]>>({});
 
@@ -215,20 +70,31 @@ export default function Search_User(): JSX.Element {
     const run = async () => {
       setLoading(true);
       setErr("");
-      setCompanies([]);
-      setOrdersByCompany({});
-
       try {
-        const comps = await searchCompaniesByCompanyName(q);
-        setCompanies(comps);
+        // 1. ค้นหาบริษัทตามชื่อ หรือ Tax ID
+        const allComps = await dbFetchJson<any[]>("/companies");
+        const filteredComps = allComps.filter(c => {
+          const searchLower = q.toLowerCase();
+          const nameMatch = (c.company || "").toLowerCase().includes(searchLower);
+          const taxMatch = (c.tax || "").toLowerCase().includes(searchLower);
+          return nameMatch || taxMatch;
+        });
 
+        setCompanies(filteredComps);
+
+        // 2. ดึง Orders ทั้งหมดมา Filter เฉพาะของบริษัทที่ค้นเจอ
+        const allOrders = await dbFetchJson<any[]>("/orders");
         const map: Record<string, OrderDoc[]> = {};
-        for (const c of comps) {
-          map[c._id] = await fetchOrdersByCompanyId(c._id);
-        }
+        
+        filteredComps.forEach(comp => {
+          map[comp._id] = allOrders.filter(order => 
+            String(order.id_company || order.company) === comp._id
+          );
+        });
+
         setOrdersByCompany(map);
-      } catch (e) {
-        setErr(e instanceof Error ? e.message : String(e));
+      } catch (e: any) {
+        setErr(e.message);
       } finally {
         setLoading(false);
       }
@@ -238,109 +104,84 @@ export default function Search_User(): JSX.Element {
   }, [q]);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 px-4 py-6">
+    <div className="ml-20 mr-20 mt-5 space-y-6 text-slate-900">
       <div className="flex items-center justify-between">
         <div className="text-lg font-semibold">ประวัติลูกค้า</div>
-        <button
-          type="button"
-          onClick={() => nav("/form")}
-          className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
-        >
-          กลับไปฟอร์ม
-        </button>
+        <button onClick={() => nav(-1)} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50">กลับ</button>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm">
-        ค้นหา: <span className="font-semibold">{q || "-"}</span>
+      <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm shadow-sm">
+        ค้นหาบริษัท/เลขผู้เสียภาษี: <span className="font-semibold text-indigo-600">{q || "-"}</span>
       </div>
 
-      {loading && (
-        <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm">
-          กำลังค้นหา...
-        </div>
-      )}
+      {loading && <div className="p-4 text-sm text-slate-500 text-center">กำลังค้นหาข้อมูล...</div>}
 
-      {err && (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800 whitespace-pre-wrap">
-          {err}
-        </div>
-      )}
-
-      {!loading && !err && companies.length === 0 && (
-        <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm">
-          ไม่พบข้อมูล
-        </div>
+      {!loading && companies.length === 0 && q && (
+        <div className="p-10 text-center text-slate-400 bg-white rounded-xl border border-dashed">ไม่พบข้อมูลบริษัทหรือเลขผู้เสียภาษีนี้</div>
       )}
 
       {companies.map((c) => {
-        const name = c.companyName || c.company || "-";
-        const count =
-          c.count_service ?? c.count_use ?? c.count ?? 0;
-
         const orders = ordersByCompany[c._id] ?? [];
-
         return (
-          <div key={c._id} className="rounded-xl border border-slate-200 bg-white p-4">
-            <div className="font-semibold">{name}</div>
-            <div className="text-xs text-slate-600">
-              tax: {c.tax || "-"} • ใช้บริการแล้ว {count} ครั้ง
+          <div key={c._id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
+            <div className="flex justify-between items-start">
+              <div>
+                <div className="text-base font-bold text-slate-800">{c.company}</div>
+                <div className="text-xs text-slate-500">Tax ID: {c.tax || "-"}</div>
+              </div>
+              <div className="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-xs font-semibold">
+                ใช้บริการ {c.count || 0} ครั้ง
+              </div>
             </div>
 
-            <div className="mt-3 text-sm font-medium">รายการงาน</div>
+            <div className="pt-2 border-t border-slate-100">
+              <div className="text-sm font-semibold text-slate-700 mb-3">ประวัติรายการงาน</div>
+              
+              {orders.length === 0 ? (
+                <div className="text-xs text-slate-400 italic">ยังไม่มีรายการงานในระบบ</div>
+              ) : (
+                <div className="space-y-3">
+                  {orders.map((o) => {
+                    const fileLinks = parseFileLinks(o.file || "");
+                    return (
+                      <button
+                        key={o._id}
+                        onClick={() => nav(`/order/${o._id}`)}
+                        className="w-full text-left p-3 rounded-xl border border-slate-100 bg-slate-50 hover:border-indigo-200 hover:bg-indigo-50 transition-all group"
+                      >
+                        <div className="font-medium text-slate-800 group-hover:text-indigo-700">
+                          {pickJobName(o.detail_work || "") || o.type_work || "ชื่องานไม่ระบุ"}
+                        </div>
+                        <div className="text-[11px] text-slate-500 mt-1">
+                          รับงาน: {dateOnly(o.start_date)} • ส่งงาน: {dateOnly(o.end_date)}
+                        </div>
 
-            {orders.length === 0 ? (
-              <div className="mt-2 text-sm text-slate-600">ยังไม่มีรายการงาน</div>
-            ) : (
-              <ul className="mt-2 space-y-2">
-                {orders.map((o) => (
-                  <li key={o._id}>
-                    <button
-                      type="button"
-                      onClick={() => nav(`/order/${encodeURIComponent(o._id)}`)}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-left hover:bg-slate-50"
-                    >
-                      <div className="font-medium">
-                        {pickJobName(o.detail_work || "") || o.type_work || "(ไม่ระบุชื่องาน)"}
-                      </div>
-
-                      <div className="text-xs text-slate-600">
-                        รับงาน: {dateOnly(o.start_date)} • ส่งงาน: {dateOnly(o.end_date)}
-                      </div>
-
-                      {(() => {
-                        const fileLinks = parseFileLinks(o.file ?? "");
-                        if (fileLinks.length === 0) return null;
-
-                        return (
-                          <div className="mt-2 text-xs">
-                            <b>ไฟล์:</b>
-                            <ul className="mt-1 space-y-1">
+                        {fileLinks.length > 0 && (
+                          <div className="mt-2 pt-2 border-t border-slate-200/50">
+                            <div className="text-[10px] font-bold text-slate-400 mb-1">ไฟล์แนบ:</div>
+                            <ul className="space-y-1">
                               {fileLinks.map((f, i) => (
-                                <li key={`${f.name}-${i}`}>
-                                  {f.url ? (
-                                    <a
-                                      href={f.url}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="underline"
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      {f.name}
-                                    </a>
-                                  ) : (
-                                    <span>{f.name}</span>
-                                  )}
+                                <li key={i} className="text-[11px]">
+                                  <a
+                                    href={f.url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-indigo-600 underline hover:text-indigo-800"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {f.name}
+                                  </a>
                                 </li>
                               ))}
                             </ul>
                           </div>
-                        );
-                      })()}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         );
       })}

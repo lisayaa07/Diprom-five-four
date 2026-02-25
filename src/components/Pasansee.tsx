@@ -1,10 +1,10 @@
 function Pasansee() {
   return (
     <div className="space-y-3">
-      <label className="block  ">ปะสันสี</label>
+      <label className="block font-bold ">ปะสันสี</label>
 
       {/* ===== แถว 1: กระดาษ ===== */}
-      <div className="flex  gap-4 rounded-xl px-4 py-3">
+      <div className="flex  gap-4 rounded-xl px-4 py-0">
         <input
           id="chk-paper"
           name="pasansee_paper_enabled"
@@ -61,7 +61,7 @@ function Pasansee() {
           />
         </div>
       </div>
-       <hr className="my-6 border-slate-200" />
+       
     </div>
     
   );

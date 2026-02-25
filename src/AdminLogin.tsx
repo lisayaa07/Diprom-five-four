@@ -1,5 +1,5 @@
 // src/AdminLogin.tsx (หรือ src/pages/AdminLogin.tsx แล้วแต่โครงสร้างคุณ)
-import React, { useState, type FormEvent, useEffect } from "react";
+import  { useState, type FormEvent, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { setToken, getRole, isLoggedIn } from "./lib/Auth";
 import axiosInstance from "./lib/axios";
@@ -7,12 +7,11 @@ import axiosInstance from "./lib/axios";
 
 export default function AdminLogin() {
   const nav = useNavigate();
-  const [userName, setUserName] = useState("Admin");
-  const [password, setPassword] = useState("1234");
+  const [userName, setUserName] = useState("");
+const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  // ถ้า login อยู่แล้ว → ส่งไปหน้าตาม role ทันที
   useEffect(() => {
     if (!isLoggedIn()) return;
     const role = getRole();
@@ -26,19 +25,34 @@ export default function AdminLogin() {
     try {
       setSubmitting(true);
 
-      const res = await axiosInstance.post("/auth/login",{
-        user_name: userName.trim(), // ✅ สำคัญ
+      // ✅ await ต้องอยู่ใน async function
+      const res = await axiosInstance.post("/auth/login", {
+        user_name: userName.trim(),
         password: password,
+      });
 
-      })
+      const token =
+        res.data?.access_token ||
+        res.data?.token ||
+        res.data?.data?.access_token ||
+        res.data?.data?.token;
 
-      const token = res.data?.access_token || res.data?.token || res.data?.data?.access_token || res.data?.data?.token;
-       if (!token) throw new Error("Login สำเร็จแต่ไม่พบ token ใน response");
-       setToken(token);
+      if (!token) throw new Error("Login สำเร็จแต่ไม่พบ token");
 
+      setToken(token);
 
-      const role = getRole();
-      nav(role === "SuperAdmin" ? "/super-admin" : "/form", { replace: true });
+      // ✅ ดึง role จาก backend หรือแยกจาก username
+      const role =
+        res.data?.role ||
+        res.data?.data?.role ||
+        (userName === "SuperAdmin" ? "SuperAdmin" : "Admin");
+
+      localStorage.setItem("role", role);
+
+      nav(role === "SuperAdmin" ? "/super-admin" : "/form", {
+        replace: true,
+      });
+
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -63,6 +77,7 @@ export default function AdminLogin() {
             <input
               value={userName}
               onChange={(e) => setUserName(e.target.value)}
+               placeholder="Username"
               className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-900"
             />
           </div>
@@ -71,6 +86,7 @@ export default function AdminLogin() {
             <input
               type="password"
               value={password}
+               placeholder="Password"
               onChange={(e) => setPassword(e.target.value)}
               className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-900"
             />
