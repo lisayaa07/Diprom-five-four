@@ -1,5 +1,5 @@
 import React, { useEffect, useState, type FormEvent, type JSX } from "react";
-import { User, ReceiptText } from "lucide-react";
+import {  ReceiptText } from "lucide-react";
 import Paper_used from "./components/Paper_used";
 import Pasansee from "./components/Pasansee";
 import Binding from "./components/Binding";
@@ -10,7 +10,6 @@ import Printer from "./components/Printer";
 import { useSearchParams } from "react-router-dom";
 import { API_BASE_URL } from "./config";
 import PDFDownloadButton from "./components/PDFDownloadLink";
-import { useNavigate } from "react-router-dom";
 import Detail_Type from "./components/Detail_Type";
 import Color from "./components/Color";
 import AdditionalDetails from "./components/Notes";
@@ -224,13 +223,13 @@ function Form(): JSX.Element {
   const [successOpen, setSuccessOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState("ส่งใบสั่งพิมพ์สำเร็จ");
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [formError, setFormError] = useState<string>("");
+  const [, setFormError] = useState<string>("");
   const [workType, setWorkType] = useState<string>("");
   const [detailsKey, setDetailsKey] = useState(0);
   const [resetKey, setResetKey] = useState(0);
   const [createdNotes, setCreatedNotes] = useState<string>("");
   const [workTypes, setWorkTypes] = useState<WorkTypeDoc[]>([]);
-  const [workTypesLoading, setWorkTypesLoading] = useState(false);
+  const [, setWorkTypesLoading] = useState(false);
   const [detailType, setDetailType] = useState<string[]>([]);
   const [, setWorkTypesError] = useState("");
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
@@ -1250,7 +1249,7 @@ function Form(): JSX.Element {
           </div>
 
           <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 pb-10 disabled:opacity-50 disabled:cursor-not-allowed">
-            <div className="flex justify-end">
+            <div className="flex justify-end ">
               <button
                 type="submit"
                 disabled={creating}

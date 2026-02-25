@@ -49,7 +49,7 @@ export default function Color({ selected, onChange }: Props) {
 
   return (
     <div className="mt-4 relative mb-4" ref={dropdownRef}>
-      <label className="block text-sm font-medium text-slate-800 mb-2">
+      <label className="block  text-slate-800 mb-2 font-bold">
         สีที่ใช้
       </label>
 

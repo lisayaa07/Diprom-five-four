@@ -1,7 +1,7 @@
 function TypeOfWork() {
   return (
     <>
-      <label className="block font-medium text-slate-800">
+      <label className="block font-bold text-slate-800">
         ชนิดรูปแบบงาน
       </label>
 
