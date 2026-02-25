@@ -104,7 +104,7 @@ export default function Search_User(): JSX.Element {
   }, [q]);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 px-4 py-6 text-slate-900">
+    <div className="ml-20 mr-20 mt-5 space-y-6 text-slate-900">
       <div className="flex items-center justify-between">
         <div className="text-lg font-semibold">ประวัติลูกค้า</div>
         <button onClick={() => nav(-1)} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50">กลับ</button>

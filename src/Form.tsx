@@ -15,6 +15,7 @@ import Detail_Type from "./components/Detail_Type";
 import Color from "./components/Color";
 import AdditionalDetails from "./components/Notes";
 import SearchBox from "./components/Search_Box";
+import FileUpload from "./components/File";
 
 const TOKEN_KEY = "admin_token"; // ให้ตรงกับตอน login เก็บไว้
 type WorkTypeDoc = { _id: string; name_work: string };
@@ -230,6 +231,7 @@ function Form(): JSX.Element {
   const [createdNotes, setCreatedNotes] = useState<string>("");
   const [workTypes, setWorkTypes] = useState<WorkTypeDoc[]>([]);
   const [workTypesLoading, setWorkTypesLoading] = useState(false);
+  const [detailType, setDetailType] = useState<string[]>([]);
   const [, setWorkTypesError] = useState("");
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
 
@@ -285,7 +287,8 @@ function Form(): JSX.Element {
     setSubtasks([]);
     setFiles([]);
     setResetKey((prev) => prev + 1);
-
+    setSelectedColors([]);
+  setDetailType([]);
     setErrors({});
     setFormError("");
     setDetailsKey((prev) => prev + 1);
@@ -1212,9 +1215,8 @@ function Form(): JSX.Element {
                     {/* RIGHT ใหญ่ */}
                     <div className="md:col-span-2 space-y-2">
                       <Detail_Type
-                        key={detailsKey}
-                        files={files}
-                        setFiles={setFiles}
+                        value={detailType}
+                        onChange={setDetailType}
                       />
                     </div>
                     <div className="md:col-span-2 space-y-2 ">
@@ -1229,6 +1231,9 @@ function Form(): JSX.Element {
                     className="grid grid-cols-1 md:grid-cols-1 gap-6"
                   >
                     <Printer />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
+                    <FileUpload files={files} setFiles={setFiles} />
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-1 gap-6">

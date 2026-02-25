@@ -124,8 +124,8 @@ export default function SuperAdmin() {
   console.log("ROLE:", localStorage.getItem("role"));
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="mx-auto max-w-5xl px-6 py-6 flex items-center justify-between">
+    <div className="min-h-screen bg-slate-50 ">
+      <header className="lg:ml-20 lg:mr-20 max-w-5xl px-6 py-6 flex items-center justify-between">
         <div>
           <div className="text-2xl font-semibold text-slate-900">SuperAdmin</div>
           <div className="text-sm text-slate-600">
@@ -136,7 +136,7 @@ export default function SuperAdmin() {
        
       </header>
 
-      <main className="mx-auto max-w-5xl px-6 pb-10">
+      <main className="lg:ml-20 lg:mr-20 max-w-5xl px-6 pb-10">
         {/* Tabs */}
         <div className="flex flex-wrap gap-2">
           {resources.map((r) => (

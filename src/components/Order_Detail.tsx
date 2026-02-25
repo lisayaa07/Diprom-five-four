@@ -310,7 +310,7 @@ function hasNoteFlag(notes: string, label: string): boolean {
   }, [data]);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 px-4 py-6 text-slate-900">
+    <div className="ml-20 mr-20 space-y-6 text-slate-900">
       <div className="flex items-center justify-between">
         <div className="text-lg font-semibold">รายละเอียดงาน (อ่านอย่างเดียว)</div>
         <button
