@@ -125,14 +125,26 @@ export default function CustomerHistory(): JSX.Element {
 
   return (
     <div className="lg:ml-10 lg:mr-10 mt-5 space-y-6 text-slate-900 px-4">
-      <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+      <div className=" md:flex-row items-center  gap-4">
         <h1 className="text-xl font-bold">ประวัติลูกค้า</h1>
-        <SearchBox /> 
+        
       </div>
+      <SearchBox /> 
 
-      <div className="bg-white rounded-xl border border-slate-200 p-4 text-sm shadow-sm">
-        ผลการค้นหาสำหรับ: <span className="font-semibold text-indigo-600">{q || "-"}</span>
-      </div>
+     <div className="bg-white rounded-xl border border-slate-200 p-4 text-sm shadow-sm transition-all">
+  {q ? (
+ 
+    <>
+      ผลการค้นหาสำหรับ: <span className="font-semibold text-indigo-600">{q}</span>
+    </>
+  ) : (
+
+    <div className="flex items-center gap-2 text-slate-500">
+      <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse"></div>
+      กรุณากรอก <span className="font-bold text-slate-700">ชื่อลูกค้า, ชื่อบริษัท</span> หรือ <span className="font-bold text-slate-700">เลขผู้เสียภาษี (TAX ID)</span> เพื่อดูประวัติการใช้บริการ
+    </div>
+  )}
+</div>
 
       {loading && <div className="text-center py-10 text-slate-400">กำลังค้นหาข้อมูล...</div>}
 

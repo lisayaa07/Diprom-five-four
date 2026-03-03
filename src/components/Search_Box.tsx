@@ -19,7 +19,7 @@ function SearchBox(): JSX.Element {
         e.preventDefault();
         go();
       }}
-      className="flex items-center gap-2 mx-10 mb-5 mt-5"
+      className="flex items-center gap-2  mb-5 mt-5"
     >
       <div className="relative ">   
         <input
