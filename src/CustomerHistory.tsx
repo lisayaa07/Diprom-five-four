@@ -98,18 +98,19 @@ export default function CustomerHistory(): JSX.Element {
           const personalId = `personal_${name}`;
           const latestOrder = personalOrders.find(po => po.customer_name === name);
           
+          
           // ✅ ดึงเลข TAX จาก detail_work (เช่น TAX ID: 101114445258)
           const taxMatch = latestOrder?.detail_work?.match(/TAX ID:\s*(\d+)/);
-          const taxValue = taxMatch ? taxMatch[1] : name; 
+          const taxValue = taxMatch ? taxMatch[1] : "-";
 
-          finalFilteredComps.push({
-            _id: personalId,
-            company: name, 
-            tax: taxValue, 
-            count: personalOrders.filter(po => po.customer_name === name).length
-          });
-          map[personalId] = personalOrders.filter(po => po.customer_name === name);
+         finalFilteredComps.push({
+          _id: personalId,
+          company: name, 
+          tax: taxValue, // ✅ แสดงเลข TAX หรือ "-" แทนชื่อลูกค้า
+          count: personalOrders.filter(po => po.customer_name === name).length
         });
+        map[personalId] = personalOrders.filter(po => po.customer_name === name);
+      });
 
         setCompanies(finalFilteredComps);
         setOrdersByCompany(map);
@@ -169,18 +170,20 @@ export default function CustomerHistory(): JSX.Element {
                     className="w-full text-left p-4 rounded-xl border border-slate-100 bg-slate-50 hover:border-indigo-200 hover:bg-indigo-50 transition-all group flex justify-between items-center"
                   >
                     <div>
-                      <div className="font-medium text-slate-800 group-hover:text-indigo-700">
-                        {o.id_company && o.id_company !== "null" ? (
-                            // ✅ กรณีมีบริษัท: แสดง "ชื่องาน [ชื่อลูกค้า]"
-                            <>
-                            {pickJobName(o.detail_work || "") || o.type_work || "ชื่องานไม่ระบุ"}{" "}
-                            [ลูกค้า : {o.customer_name || "ไม่ระบุชื่อ"}]
-                            </>
-                        ) : (
-                            // ✅ กรณีไม่มีบริษัท (ลูกค้าทั่วไป): แสดงแค่ "ชื่อลูกค้า"
-                            o.customer_name || "ไม่ระบุชื่อ"
-                        )}
-                        </div>
+                     <div className="font-medium text-slate-800 group-hover:text-indigo-700">
+                      {/* ✅ แสดงชื่องานเสมอ ถ้ามีบริษัทให้ต่อท้ายด้วยชื่อลูกค้า */}
+                      {o.id_company && o.id_company !== "null" ? (
+                        <>
+                          {pickJobName(o.detail_work || "") || o.type_work || "ชื่องานไม่ระบุ"}{" "}
+                          <span className="text-slate-400 text-xs font-normal">
+                            [ลูกค้า: {o.customer_name || "ไม่ระบุชื่อ"}]
+                          </span>
+                        </>
+                      ) : (
+                        // ✅ สำหรับลูกค้าทั่วไป ให้แสดงชื่องานแทนชื่อลูกค้า
+                        pickJobName(o.detail_work || "") || o.type_work || "ชื่องานไม่ระบุ"
+                      )}
+                    </div>
                       <div className="text-[11px] text-slate-500 mt-1">
                         เริ่ม: {dateOnly(o.start_date)} • รับงาน: {dateOnly(o.end_date)}
                       </div>
