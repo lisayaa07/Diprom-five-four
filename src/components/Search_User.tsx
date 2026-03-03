@@ -64,44 +64,84 @@ export default function Search_User(): JSX.Element {
   const [companies, setCompanies] = useState<CompanyDoc[]>([]);
   const [ordersByCompany, setOrdersByCompany] = useState<Record<string, OrderDoc[]>>({});
 
-  useEffect(() => {
-    if (!q) return;
+ // Search_User.tsx (ส่วน useEffect)
 
-    const run = async () => {
-      setLoading(true);
-      setErr("");
-      try {
-        // 1. ค้นหาบริษัทตามชื่อ หรือ Tax ID
-        const allComps = await dbFetchJson<any[]>("/companies");
-        const filteredComps = allComps.filter(c => {
-          const searchLower = q.toLowerCase();
-          const nameMatch = (c.company || "").toLowerCase().includes(searchLower);
-          const taxMatch = (c.tax || "").toLowerCase().includes(searchLower);
-          return nameMatch || taxMatch;
-        });
+// Search_User.tsx
 
-        setCompanies(filteredComps);
+useEffect(() => {
+  if (!q) return;
 
-        // 2. ดึง Orders ทั้งหมดมา Filter เฉพาะของบริษัทที่ค้นเจอ
-        const allOrders = await dbFetchJson<any[]>("/orders");
-        const map: Record<string, OrderDoc[]> = {};
-        
-        filteredComps.forEach(comp => {
-          map[comp._id] = allOrders.filter(order => 
-            String(order.id_company || order.company) === comp._id
-          );
-        });
+  // Search_User.tsx (ส่วน useEffect)
 
-        setOrdersByCompany(map);
-      } catch (e: any) {
-        setErr(e.message);
-      } finally {
-        setLoading(false);
+const run = async () => {
+  setLoading(true);
+  try {
+    const searchLower = q.toLowerCase();
+    const [allComps, allOrders] = await Promise.all([
+      dbFetchJson<any[]>("/companies"),
+      dbFetchJson<any[]>("/orders")
+    ]);
+
+    // 1. ค้นหา Orders ที่ Match กับชื่อลูกค้า หรือรายละเอียดงาน
+    const matchedOrders = allOrders.filter(o => 
+      (o.customer_name || "").toLowerCase().includes(searchLower) ||
+      (o.detail_work || "").toLowerCase().includes(searchLower)
+    );
+
+    // 2. ค้นหาบริษัทที่ Match (Company/Tax)
+    const matchedComps = allComps.filter(c => 
+      (c.company || "").toLowerCase().includes(searchLower) ||
+      (c.tax || "").toLowerCase().includes(searchLower)
+    );
+
+    const map: Record<string, OrderDoc[]> = {};
+    const finalFilteredComps: any[] = [...matchedComps];
+
+    // 3. จัดกลุ่ม Order ที่มีบริษัทผูกอยู่
+    allOrders.forEach(o => {
+      const cId = String(o.id_company || "");
+      if (cId && (matchedComps.some(mc => mc._id === cId) || matchedOrders.some(mo => mo._id === o._id))) {
+        if (!map[cId]) {
+          map[cId] = [];
+          // ถ้าบริษัทนี้ยังไม่มีใน list (แต่เจอจากชื่อลูกค้าใน order) ให้ดึงมาใส่
+          if (!finalFilteredComps.some(fc => fc._id === cId)) {
+            const compData = allComps.find(ac => ac._id === cId);
+            if (compData) finalFilteredComps.push(compData);
+          }
+        }
+        map[cId].push(o);
       }
-    };
+    });
 
-    run();
-  }, [q]);
+    // 4. 📌 ส่วนสำคัญ: จัดการลูกค้าทั่วไปที่ไม่มีบริษัท (id_company: null)
+    // เราจะแยกตามชื่อลูกค้า (customer_name) เพื่อให้หัวข้อแสดงเป็นชื่อคน
+    const personalOrders = matchedOrders.filter(o => !o.id_company);
+    
+    // ใช้ Set เพื่อหาชื่อลูกค้าที่ไม่ซ้ำกัน
+    const uniquePersonalNames = Array.from(new Set(personalOrders.map(o => o.customer_name || "ไม่ระบุชื่อ")));
+
+    uniquePersonalNames.forEach(name => {
+      const personalId = `personal_${name}`; // สร้าง ID ชั่วคราวจากชื่อ
+      finalFilteredComps.push({
+        _id: personalId,
+        company: name, // ✅ เปลี่ยนชื่อหัวข้อจาก "ลูกค้าทั่วไป" เป็น "ชื่อลูกค้า"
+        tax: (personalOrders.find(po => po.customer_name === name)?.detail_work || "").match(/TAX ID:\s*(\d+)/)?.[1] || "",
+        count: personalOrders.filter(po => po.customer_name === name).length
+      });
+      map[personalId] = personalOrders.filter(po => po.customer_name === name);
+    });
+
+    setCompanies(finalFilteredComps);
+    setOrdersByCompany(map);
+  } catch (e: any) {
+    setErr(e.message);
+  } finally {
+    setLoading(false);
+  }
+};
+
+  run();
+}, [q]);
 
   return (
     <div className="ml-20 mr-20 mt-5 space-y-6 text-slate-900">

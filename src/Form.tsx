@@ -14,8 +14,10 @@ import PDFDownloadButton from "./components/PDFDownloadLink";
 import Detail_Type from "./components/Detail_Type";
 import Color from "./components/Color";
 import AdditionalDetails from "./components/Notes";
-import SearchBox from "./components/Search_Box";
+// import SearchBox from "./components/Search_Box";
 import FileUpload from "./components/File";
+import CustomerSearch from "./components/CustomerSearch";
+import { dbFetchJson } from "./lib/dbClient";
 
 const TOKEN_KEY = "admin_token"; // ให้ตรงกับตอน login เก็บไว้
 type WorkTypeDoc = { _id: string; name_work: string };
@@ -213,6 +215,7 @@ function Form(): JSX.Element {
     quantity: "",
     startDate: "",
     endDate: "",
+    unit: "",
   });
 
   const [files, setFiles] = useState<File[]>([]);
@@ -234,6 +237,19 @@ function Form(): JSX.Element {
   const [detailType, setDetailType] = useState<string[]>([]);
   const [, setWorkTypesError] = useState("");
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
+  const [units, setUnits] = useState<any[]>([]);
+
+  useEffect(() => {
+  const fetchUnits = async () => {
+    try {
+      const data = await dbFetchJson<any[]>("/units"); // ดึงข้อมูลหน่วยนับ 
+      setUnits(data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+  fetchUnits();
+}, []);
 
   useEffect(() => {
     const run = async () => {
@@ -280,6 +296,7 @@ function Form(): JSX.Element {
       quantity: "",
       startDate: "",
       endDate: "",
+      unit: "",
     });
 
     setSelectedProjectGid("");
@@ -380,7 +397,7 @@ function Form(): JSX.Element {
   }, [searchParams, projectsState.status]);
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
   ) => {
     const { name, value } = e.target;
 
@@ -392,12 +409,19 @@ function Form(): JSX.Element {
       }
       return next;
     });
+    if (errors[name]) {
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
   };
 
   const validate = () => {
     const e: Record<string, string> = {};
 
-    if (!formData.company.trim()) e.company = "กรุณากรอกชื่อบริษัท/หน่วยงาน";
+    
     if (!formData.fullName.trim()) e.fullName = "กรุณากรอกชื่อ";
     if (!formData.phoneNumber.trim()) e.phoneNumber = "กรุณากรอกเบอร์โทร";
     if (!formData.email.trim()) e.email = "กรุณากรอกอีเมล";
@@ -476,9 +500,9 @@ function Form(): JSX.Element {
       // --- รายละเอียดงาน ---
       const jobName = getStr("jobName");
       if (jobName) lines.push(`ชื่องาน: ${jobName}`);
-
+      const units = getStr("unit");
       const qty = getStr("quantity");
-      if (qty) lines.push(`จำนวนสั่ง: ${qty}`);
+      if (qty) lines.push(`จำนวนสั่ง: ${qty}${units ? ` ${units}` : ""}`);
 
       const startDate = getStr("startDate");
       if (startDate) lines.push(`วันเริ่ม: ${startDate}`);
@@ -761,16 +785,24 @@ function Form(): JSX.Element {
       }
 
       // ✅ 4) บันทึกลง MongoDB (แทน GAS saveOrder)
-      // 4.1 upsert/create company
-      const compJson = await upsertCompany({
-        company: formData.company.trim(),
-        tax: formData.tax_id.trim() ? formData.tax_id.trim() : undefined,
-      });
+      let companyId = null; // เริ่มต้นเป็น null
 
-      const companyId = pickId(compJson);
-      if (!companyId) throw new Error("ไม่พบ id_company ที่ได้จาก /companies");
+      // ตรวจสอบว่ามีการกรอกชื่อบริษัทหรือไม่
+      if (formData.company.trim()) {
+        try {
+          const compJson = await upsertCompany({
+            company: formData.company.trim(),
+            tax: formData.tax_id.trim() ? formData.tax_id.trim() : undefined,
+          });
+          companyId = pickId(compJson);
+          // ไม่ต้อง throw Error แล้ว เพื่อให้ทำงานต่อได้แม้หา ID ไม่เจอ
+        } catch (err) {
+          console.error("Upsert company failed:", err);
+          // กรณี API บริษัทพัง ก็ยังให้บันทึก Order ต่อไปได้
+        }
+      }
 
-      const fileText = fileLinks.length > 0 ? JSON.stringify(fileLinks) : "";
+      const fileText = fileLinks.length > 0 ? JSON.stringify(fileLinks) : ""
 
       await createOrder({
         id_company: companyId,
@@ -803,15 +835,28 @@ function Form(): JSX.Element {
   };
 
   const showPaperUsed =
-    workType === "สมุดหนังสือที่มีการเข้าเล่ม" || workType === "อื่นๆ";
+    workType === "หนังสือ/งานเข้าเล่ม" || workType === "อื่นๆ";
   const showPasansee =
-    workType === "งานเอกสารธุรการ" ||
-    workType === "สมุดหนังสือที่มีการเข้าเล่ม" ||
+    workType === "หนังสือ/งานเข้าเล่ม" ||
     workType === "อื่นๆ";
   const showBinding =
-    workType === "งานเอกสารธุรการ" ||
-    workType === "สมุดหนังสือที่มีการเข้าเล่ม" ||
+  
+    workType === "หนังสือ/งานเข้าเล่ม" ||
     workType === "อื่นๆ";
+
+    const handleSelectOldCustomer = (customer: any) => {
+    setFormData((prev) => ({
+      ...prev,
+      company: customer.company || customer.customer_name || "",
+      tax_id: customer.tax || "",
+      fullName: customer.customer_name || customer.name || "",
+      phoneNumber: customer.phone || "",
+      email: customer.email || "",
+      lineId: customer.line || "",
+      address: customer.address || "",
+    }));
+    
+  };
 
   return (
     <>
@@ -829,7 +874,9 @@ function Form(): JSX.Element {
           )} */}
 
         {/* {projectsState.status === "success" && ( */}
-        <SearchBox />
+        <div className="mx-10 mb-4 mt-4">
+        <CustomerSearch onSelect={handleSelectOldCustomer} />
+      </div>
         <form
           id="order-form"
           onSubmit={handleSubmit}
@@ -885,8 +932,7 @@ function Form(): JSX.Element {
                     {/* COMPANY */}
                     <div className="space-y-2">
                       <label className="text-sm text-slate-700">
-                        ชื่อบริษัท/หน่วยงาน{" "}
-                        <span className="text-rose-600">*</span>
+                        ชื่อบริษัท/หน่วยงาน
                       </label>
                       <input
                         name="company"
@@ -1007,7 +1053,7 @@ function Form(): JSX.Element {
 
                 {/* RIGHT FORM */}
                 <div className="lg:col-span-3 space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-6">
                     {/* วันที่สั่งงาน */}
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-slate-700">
@@ -1019,12 +1065,12 @@ function Form(): JSX.Element {
                         value={formData.startDate}
                         onChange={handleChange}
                         className={`w-full rounded-xl border bg-white px-4 py-2.5 text-sm outline-none transition
-              focus:ring-2 focus:ring-indigo-100
-              ${
-                errors.startDate
-                  ? "border-rose-400 focus:border-rose-500"
-                  : "border-slate-300 focus:border-indigo-600"
-              }`}
+                      focus:ring-2 focus:ring-indigo-100
+                      ${
+                        errors.startDate
+                          ? "border-rose-400 focus:border-rose-500"
+                          : "border-slate-300 focus:border-indigo-600"
+                      }`}
                       />
                       {errors.startDate && (
                         <p className="text-xs text-rose-600">
@@ -1045,12 +1091,12 @@ function Form(): JSX.Element {
                         onChange={handleChange}
                         min={formData.startDate || undefined}
                         className={`w-full rounded-xl border bg-white px-4 py-2.5 text-sm outline-none transition
-              focus:ring-2 focus:ring-indigo-100
-              ${
-                errors.endDate
-                  ? "border-rose-400 focus:border-rose-500"
-                  : "border-slate-300 focus:border-indigo-600"
-              }`}
+                        focus:ring-2 focus:ring-indigo-100
+                        ${
+                          errors.endDate
+                            ? "border-rose-400 focus:border-rose-500"
+                            : "border-slate-300 focus:border-indigo-600"
+                        }`}
                       />
                       {errors.endDate && (
                         <p className="text-xs text-rose-600">
@@ -1058,31 +1104,48 @@ function Form(): JSX.Element {
                         </p>
                       )}
                     </div>
-                    {/* จำนวนสั่ง */}
+                   
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-slate-700">
-                        จำนวนสั่ง <span className="text-rose-600">*</span>
-                      </label>
-                      <input
-                        type="number"
-                        name="quantity"
-                        value={formData.quantity}
-                        onChange={handleChange}
-                        min={1}
-                        className={`w-full rounded-xl border bg-white px-4 py-2.5 text-sm outline-none transition
-              focus:ring-2 focus:ring-indigo-100
-              ${
-                errors.quantity
-                  ? "border-rose-500"
-                  : "border-slate-300 focus:border-indigo-600"
-              }`}
-                      />
-                      {errors.quantity && (
-                        <p className="text-xs text-rose-600">
-                          {errors.quantity}
-                        </p>
-                      )}
-                    </div>
+  <label className="text-sm font-medium text-slate-700">
+    จำนวนสั่ง <span className="text-rose-600">*</span>
+  </label>
+  
+  <div className="flex gap-2">
+    {/* ช่องกรอกตัวเลข */}
+    <input
+      type="number"
+      name="quantity"
+      value={formData.quantity}
+      onChange={handleChange}
+      min={1}
+      className={`w-full rounded-xl border bg-white px-4 py-2.5 text-sm outline-none transition
+      focus:ring-2 focus:ring-indigo-100
+      ${errors.quantity ? "border-rose-500" : "border-slate-300 focus:border-indigo-600"}`}
+      placeholder="0"
+    />
+
+    {/* Dropdown เลือกหน่วยนับ */}
+    <select
+      name="unit"
+      value={formData.unit}
+      onChange={handleChange}
+      className="w-32 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 cursor-pointer"
+    >
+      <option value="">หน่วย</option>
+      {units.map((u) => (
+        <option key={u._id} value={u.name_unit}>
+          {u.name_unit}
+        </option>
+      ))}
+    </select>
+  </div>
+
+  {errors.quantity && (
+    <p className="text-xs text-rose-600 animate-in fade-in slide-in-from-left-1">
+      {errors.quantity}
+    </p>
+  )}
+</div>
 
                     {/* ชื่องาน (เต็มแถว) */}
                     <div className="space-y-2 md:col-span-3 lg:col-span-3">
@@ -1094,12 +1157,12 @@ function Form(): JSX.Element {
                         value={formData.jobName}
                         onChange={handleChange}
                         className={`w-full rounded-xl border bg-white px-4 py-2.5 text-sm outline-none transition
-              focus:ring-2 focus:ring-indigo-100
-              ${
-                errors.jobName
-                  ? "border-rose-400 focus:border-rose-500"
-                  : "border-slate-300 focus:border-indigo-600"
-              }`}
+                        focus:ring-2 focus:ring-indigo-100
+                        ${
+                          errors.jobName
+                            ? "border-rose-400 focus:border-rose-500"
+                            : "border-slate-300 focus:border-indigo-600"
+                        }`}
                       />
                       {errors.jobName && (
                         <p className="text-xs text-rose-600">
@@ -1146,52 +1209,67 @@ function Form(): JSX.Element {
                   </div>
                 </div>
                 <div className="lg:col-span-3 space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="dropdown w-full max-w-xs">
-                      {/* ปุ่มแสดงค่าปัจจุบัน */}
-                      <div
-                        tabIndex={0}
-                        role="button"
-                        className="btn btn-outline w-full justify-between"
-                      >
-                        {workType || "เลือกประเภทงาน"}
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="w-4 h-4 opacity-70"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
-                      </div>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+  <div className="dropdown w-full">
+    {/* Label ด้านบนขนาดปกติ แต่เน้นตัวหนา */}
+    <label className="label py-1">
+      <span className=" font-bold text-black">ประเภทงานที่สั่งพิมพ์</span>
+    </label>
 
-                      {/* เมนู dropdown */}
-                      <ul
-                        tabIndex={0}
-                        className="menu menu-sm dropdown-content bg-base-100 rounded-box z-[1] mt-2 w-60 p-2 shadow"
-                      >
-                        {workTypes.map((t) => (
-                          <li key={t._id}>
-                            <a
-                              onClick={() => setWorkType(t.name_work)}
-                              className={`flex justify-between ${
-                                workType === t.name_work ? "active" : ""
-                              }`}
-                            >
-                              {t.name_work}
-                              {workType === t.name_work && "✓"}
-                            </a>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
+    {/* ปุ่ม Select - ปรับเป็น text-base (ขนาดมาตรฐาน) และลดความสูงเหลือ h-12 */}
+    <div
+      tabIndex={0}
+      role="button"
+      className="btn btn-outline border-slate-200 hover:bg-slate-50 hover:border-indigo-500 hover:text-indigo-700 w-full justify-between h-12 px-4 rounded-xl bg-white shadow-sm transition-all duration-200"
+    >
+      <span className=" truncate">
+        {workType || "เลือกประเภทงาน..."}
+      </span>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        className="w-5 h-5 opacity-40 text-indigo-500"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+      </svg>
+    </div>
+
+    {/* Dropdown Menu - ปรับเป็น menu-md และลดขนาดตัวอักษรลง */}
+    <ul
+      tabIndex={0}
+      className="dropdown-content menu menu-md bg-white rounded-xl z-[50] mt-2 w-full p-1.5 shadow-xl border border-slate-100 animate-in fade-in zoom-in-95 duration-150"
+    >
+      <div className="px-3 py-1.5  font-bold text-slate-400 uppercase ">
+        รายการประเภทงาน
+      </div>
+      
+      {workTypes.map((t) => (
+        <li key={t._id}>
+          <a
+            onClick={() => {
+              setWorkType(t.name_work);
+              (document.activeElement as HTMLElement)?.blur();
+            }}
+            className={`flex justify-between items-center py-2.5 px-3 rounded-lg text-sm font-medium ${
+              workType === t.name_work 
+                ? "bg-indigo-50 text-indigo-700 font-semibold" 
+                : "text-slate-600 hover:bg-slate-50 hover:text-indigo-600"
+            }`}
+          >
+            {t.name_work}
+            {workType === t.name_work && (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+              </svg>
+            )}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </div>
+</div>
 
                   <div className="space-y-2 md:col-span-3 lg:col-span-3">
                     {showPaperUsed && <Paper_used />}

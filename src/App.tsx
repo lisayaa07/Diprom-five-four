@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Form from "./Form";
 import Add from "./Add";
-import Search_User from "./components/Search_User";
+import CustomerHistory from "./CustomerHistory"; // ✅ หน้านี้รวม SearchBox ไว้แล้ว
 import Order_Detail from "./components/Order_Detail";
 import Nav from "./components/Nav";
 import AdminLogin from "./AdminLogin";
@@ -23,19 +23,18 @@ export default function App() {
       )}
 
       {/* ดัน content ลงมา ไม่ให้โดน nav บัง */}
-    <div
-  className={
-    !hideNav
-      ? "lg:ml-64 pt-14 lg:pt-0 min-h-screen bg-slate-50"
-      : ""
-  }
->
+      <div
+        className={
+          !hideNav
+            ? "lg:ml-64 pt-14 lg:pt-0 min-h-screen bg-slate-50"
+            : ""
+        }
+      >
         <Routes>
-          
           <Route path="/" element={<Navigate to="/admin/login" replace />} />
-
           <Route path="/admin/login" element={<AdminLogin />} />
 
+          {/* หน้าฟอร์มสั่งพิมพ์ */}
           <Route
             path="/form"
             element={
@@ -54,15 +53,16 @@ export default function App() {
             }
           />
 
-          <Route
-            path="/search-user"
-            element={
-              <RequireRole allow={["Admin", "SuperAdmin"]}>
-                <Search_User />
-              </RequireRole>
-            }
-          />
+        <Route
+          path="/search-user"
+          element={
+            <RequireRole allow={["Admin", "SuperAdmin"]}>
+              <CustomerHistory /> {/* ✅ ใช้คอมโพเนนต์ใหม่ที่นี่ */}
+            </RequireRole>
+          }
+        />
 
+          {/* หน้ารายละเอียดงาน */}
           <Route
             path="/order/:orderId"
             element={
@@ -72,6 +72,7 @@ export default function App() {
             }
           />
 
+          {/* หน้าสำหรับ Super Admin เท่านั้น */}
           <Route
             path="/super-admin"
             element={

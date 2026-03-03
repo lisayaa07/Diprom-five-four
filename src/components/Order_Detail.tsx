@@ -279,6 +279,7 @@ function hasNoteFlag(notes: string, label: string): boolean {
     const typeOfWorkText = extractNoteValue(order.notes || "", "ชนิดรูปแบบงาน");
     const printer = extractNoteValue(order.notes || "", "เครื่องพิมพ์");
     const colors = extractNoteValue(order.notes || "", "สีที่ใช้" ,)
+    const quantityWithUnit = extractNoteValue(order.notes || "", "จำนวนสั่ง");
 
     return {
       jobName,
@@ -305,6 +306,7 @@ function hasNoteFlag(notes: string, label: string): boolean {
       typeOfWorkText,
       printer,
       colors,
+      quantity: quantityWithUnit !== "-" ? quantityWithUnit : order.quantity,
 
     };
   }, [data]);
@@ -356,7 +358,7 @@ function hasNoteFlag(notes: string, label: string): boolean {
               <b>ประเภทงาน:</b> {view.workTypeFromNotes || view.order.projectName || "-"}
             </div>
 
-          <div><b>จำนวนสั่ง:</b> {view.order.quantity || "-"}</div>
+     <div><b>จำนวนสั่ง:</b> {view.quantity || view.order.quantity || "-"}</div>
           <div className="text-sm flex gap-2 items-center">
           <b>ไฟล์:</b>{" "}
           {(() => {
@@ -403,7 +405,7 @@ function hasNoteFlag(notes: string, label: string): boolean {
                     jobName={view.jobName || "-"}
                     phone={view.order.phone}
                     line={view.order.line || "-"}
-                    quantity={ view.order.quantity || "-"}
+                    quantity={view.quantity || view.order.quantity || "-"}
                     cover={view.cover || "-"}
                     inside={view.inside || "-"}
                     billTypes={view.billTypes || "-"}
@@ -454,7 +456,7 @@ function hasNoteFlag(notes: string, label: string): boolean {
                             jobName={view.jobName || "-"}
                             line={view.order.line || "-"}
                             workTypeFromNotes={view.workTypeFromNotes || "-"}
-                            quantity={ view.order.quantity || "-"}
+                            quantity={view.quantity || view.order.quantity || "-"}
                             cover={view.cover || "-"}
                             inside={view.inside || "-"}
                             billTypes={view.billTypes || "-"}

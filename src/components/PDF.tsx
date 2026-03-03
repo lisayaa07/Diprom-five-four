@@ -108,6 +108,7 @@ type Props = {
   typeOfWorkText?: string;
   printer?: string;
   colors?: string;
+  
 };
 
 const MyPdfDocument = ({
@@ -143,6 +144,7 @@ const MyPdfDocument = ({
   typeOfWorkText,
   printer,
   colors,
+  
 
 
 
@@ -178,7 +180,7 @@ const MyPdfDocument = ({
               marginVertical: 6,
             }}
           />
-          <Text style={styles.text}>จำนวนสั่ง: {quantity || "-"} หน่วย</Text>
+          <Text style={styles.text}>จำนวนสั่ง: {quantity || "-"}</Text>
 
            <View
             style={{

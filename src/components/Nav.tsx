@@ -5,6 +5,7 @@ import {
   LogOut,
   Menu,
   X,
+  Users, // ✅ เพิ่มไอคอน Users สำหรับเมนูประวัติลูกค้า
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState } from "react";
@@ -91,6 +92,20 @@ function Nav() {
           >
             <FileText size={16} />
             ฟอร์ม
+          </button>
+
+          {/* ✅ เพิ่มเมนูประวัติลูกค้า ตรงนี้ */}
+          <button
+            onClick={() => {
+              navigate("/search-user");
+              setOpen(false);
+            }}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${isActive(
+              "/search-user"
+            )}`}
+          >
+            <Users size={16} />
+            ประวัติลูกค้า
           </button>
 
           {role === "SuperAdmin" && (
