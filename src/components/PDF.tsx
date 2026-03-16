@@ -55,6 +55,8 @@ const styles = StyleSheet.create({
     marginBottom: 5,
     paddingLeft: 10,
     paddingTop: 5,
+    flexWrap: 'wrap',
+    paddingRight: 5,
   },
   textBold: {
     marginBottom: 5,

@@ -840,7 +840,7 @@ function Form(): JSX.Element {
     workType === "หนังสือ/งานเข้าเล่ม" ||
     workType === "อื่นๆ";
   const showBinding =
-  
+    workType === "งานแผ่นเดียว" ||
     workType === "หนังสือ/งานเข้าเล่ม" ||
     workType === "อื่นๆ";
 

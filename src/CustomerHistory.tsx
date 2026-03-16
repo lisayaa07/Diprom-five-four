@@ -201,7 +201,7 @@ export default function CustomerHistory(): JSX.Element {
                       </div>
                     </div>
                     <div className="text-indigo-600 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity">
-                      ดูรายละเอียด →
+                      ดูรายละเอียด 
                     </div>
                   </button>
                 ))}

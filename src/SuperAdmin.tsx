@@ -6,7 +6,7 @@ import axios from "./lib/axios"; // 👈 ใช้ instance
 type MasterItem = { _id: string; [k: string]: any };
 
 type ResourceConf = {
-  key: "printers" | "type-works" | "colors";
+  key: "printers" | "type-works" | "colors" | "units" | "print-types";
   title: string;
   listPath: string;
   createPath: string;
@@ -47,6 +47,25 @@ export default function SuperAdmin() {
         nameField: "name_color",
         label: "ชื่อสี",
       },
+      {
+      key: "units",
+      title: "Units",
+      listPath: "/units",
+      createPath: "/units",
+      deletePath: (id) => `/units/${id}`,
+      nameField: "name_unit", // ต้องตรงกับฟิลด์ใน Database ที่คุณดึงมาใช้ใน Form
+      label: "ชื่อหน่วยนับ",
+    },
+
+    {
+      key: "print-types",
+      title: "Print Types",
+      listPath: "/print-types",
+      createPath: "/print-types",
+      deletePath: (id) => `/print-types/${id}`,
+      nameField: "name_print_type", 
+      label: "ชื่อรูปแบบงาน",
+    },
     ],
     [],
   );
